@@ -2,16 +2,111 @@
 
 \begin{document}
 
-\section{Overview}
+The compiler is comprised of a number of stages and substages, as shown in Figure \ref{fig:compiler-layout}:
+
+\begin{figure}[h]
+    \includegraphics[width=\textwidth]{figures/compiler-layout.png}
+    \caption{}
+    \label{fig:compiler-layout}
+\end{figure}
+
+A brief overview of each stage is given here for a `big picture' view of the compiler, followed by more detailed
+descriptions below.
+
+\begin{description}
+\item[Frontend]
+{
+    \hfill
+
+    The frontend consists of standard lexing and parsing from Haskell source code into an Abstract Syntax Tree
+    (AST). A modified version of an existing library (haskell-src\footnote{https://github.com/hnefatl/haskell-src})
+    is used.
+
+}
+\item[Preprocessing]
+{
+    \hfill
+    \begin{itemize}
+    \item
+    {
+
+        The renamer renames each variable so that later stages can assume each variable name is unique:
+        this reduces complexity by removing the possibility of variable shadowing (eg.\ \haskell{let x = 1 in let x
+        = 2 in x}).
+
+    }
+    \item
+    {
+
+        Kind and Class analysis both simply extract useful information about the declarations in the source so that
+        stages of the type checker are simpler.
+
+    }
+    \item
+    {
+
+        Dependency analysis computes a partial order on the source declarations so that the typechecker can process
+        them in a valid order.
+
+    }
+    \end{itemize}
+}
+\item[Type Checker]
+{
+    \hfill
+    \begin{itemize}
+    \item
+    {
+
+        The type inference stage infers polymorphic overloaded types for each symbol, checks them against any
+        user-provided type signatures, and alters the AST so that each expression is tagged with its type.
+
+    }
+    \item
+    {
+
+        Deoverloading converts polymorphic overloaded types to polymorphic types similar to those of System F, and
+        alters the AST to implement typeclasses using dictionary-passing.
+
+    }
+    \end{itemize}
+}
+\item[Lowering]
+{
+    \hfill
+
+    The lowering stage transforms the Haskell source AST into Intermediate Language A (ILA), then rearranges that
+    tree into Administrative Normal Form (ILA-ANF), before finally transforming it into Intermediate Language B
+    (ILB).
+
+}
+\item[Optimisations]
+{
+    \hfill
+
+    Optimisations transform the intermediate languages while preserving their semantics.
+
+    \todo[inline]{At time of writing these are done on ILB, might change to ILAANF so should update this accordingly.}
+    \todo[inline]{If any more optimisations are implemented, update the diagram and here.}
+
+}
+\item[Code Generation]
+{
+    \hfill
+
+    ILB is transformed into Java Bytecode (JVB), and a modified version of an existing library
+    (hs-java\footnote{https://github.com/hnefatl/hs-java}) is used to convert a logical representation of the
+    bytecode into a set of class files, which are then packaged into an executable Jar file.
+
+}
+\end{description}
+
+Some summarising paragraph?
+
+\section{Implementation Details}
 {
 
-    The compiler is comprised of a number of stages and substages, as shown in Figure \ref{fig:compiler-layout}:
 
-    \begin{figure}[h]
-        \includegraphics[width=\textwidth]{figures/compiler-layout.png}
-        \caption{}
-        \label{fig:compiler-layout}
-    \end{figure}
 
 }
 

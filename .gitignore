@@ -8,5 +8,6 @@
 *.toc
 *.out
 *.synctex.gz
+*.pdf
 
 /_minted*/

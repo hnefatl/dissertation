@@ -6,6 +6,7 @@
 \usepackage{minted}
 \usepackage{verbatim}
 \usepackage{titlesec}
+\usepackage{caption}
 \usepackage{pdfpages}
 \usepackage{subfiles}
 
@@ -16,7 +17,7 @@
 
 \titleformat{\chapter}[display]
 {\normalfont\huge\bfseries}{\chaptertitlename\ \thechapter}{20pt}{\Huge}
-\titlespacing*{\chapter}{0pt}{-50pt}{40pt}
+\titlespacing*{\chapter}{0pt}{-20pt}{40pt}
 
 \newcommand\todo[1]{\textbf{TODO(kc506): #1}}
 \newcommand\haskell[1]{\mintinline{haskell}{#1}}
@@ -65,6 +66,7 @@ Robinson College \\[5mm]
 \chapter{Preparation}
 
 \chapter{Implementation}
+\subfile{implementation}
 
 \chapter{Evaluation}
 

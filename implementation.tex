@@ -101,13 +101,57 @@ descriptions below.
 }
 \end{description}
 
-Some summarising paragraph?
 
 \section{Implementation Details}
 {
+    \subsection{Frontend}
+    {
 
+        Lexing and parsing of Haskell source is performed using the
+        \monospace{haskell-src}\footnote{https://hackage.haskell.org/package/haskell-src} library, which I have modified
+        to provide some additional desirable features:
 
+        \begin{itemize}
+        \item
+        {
+            Lexing and parsing declarations for built-in constructors like list and tuple definitions (eg.\
+            \haskell{data [] a = [] | a:[a]}).
+        }
+        \item
+        {
+            Parsing data declarations without any constructors (eg.\ \haskell{data Int})\footnote{Declarations of this
+            form are invalid in the original Haskell 1998 syntax, but valid in Haskell 2010: see
+            https://wiki.haskell.org/Empty\_type}. This is a valuable way of introducing built-in types.
+        }
+        \item
+        {
+            Adding \haskell{Hashable} and \haskell{Ord} typeclass instances to the syntax AST, so that syntax trees can
+            be stored in associative containers.
+        }
+        \end{itemize}
 
+        The syntax supported is a strict superset of Haskell 1998 and a strict subset of Haskell 2010, but my compiler
+        does not have support for all of the features implied by the scope of the syntax. For example, multi-parameter
+        typeclasses are parsed correctly as a feature of Haskell 2010 but get rejected by the deoverloading stage.
+
+        \begin{figure}[h]
+            \begin{haskellfigure}
+class Convertable a b where
+    convert :: a -> b
+instance Convertable Bool Int where
+    convert True = 1
+    convert False = 0
+            \end{haskellfigure}
+            \caption{An example of a multi-parameter typeclass}
+        \end{figure}
+
+    }
+    \subsection{Preprocessor}
+    {
+
+        
+
+    }
 }
 
 \end{document}

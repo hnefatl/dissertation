@@ -5,7 +5,7 @@
 The compiler is comprised of a number of stages and substages, as shown in Figure \ref{fig:compiler-layout}:
 
 \begin{figure}[h]
-    \includegraphics[width=\textwidth]{figures/compiler-layout.png}
+    \includegraphics[width=\textwidth]{figures/compiler_layout.png}
     \caption{}
     \label{fig:compiler-layout}
 \end{figure}
@@ -181,10 +181,19 @@ descriptions below.
 
             \begin{itemize}
             \item When a new syntactic variable comes into scope (eg. from a let binding, a lambda argument, a new type signature, a pattern match...), a fresh semantic variable name is generated and pushed onto the stack.
-            \item Whenever we leave the scope of a syntactic variable, we pop a semantic name off its corresponding stack.
+            \item Whenever we leave the scope of a syntactic variable, we pop a semantic name off its corresponding
+            stack.
             \item When we see a use of a syntactic variable, we replace it with the current top of the corresponding
             stack.
             \end{itemize}
+
+            A similar mapping is maintained for type variables, with the same rules for maintaining it.
+
+            Type constants such as \haskell{Bool} from \haskell{data Bool = False | True} and typeclass names like
+            \haskell{Num} from \haskell{class Num a where ...} are not renamed: these names are already guaranteed to be
+            unique by the syntax of Haskell, and renaming them means we need to carry more state through the compiler as
+            to what they've been renamed to.
+
         }
         \subsection{Kind/Class Analysis}
         {
@@ -198,7 +207,44 @@ descriptions below.
         \subsection{Dependency Analysis}
         {
 
+            When typechecking, the order of processing declarations matters: we can't infer the type of \haskell{foo =
+            bar baz} until we've inferred the types of \haskell{bar} and \haskell{baz}. The dependency analysis stage
+            determines the order in which the typechecker should process declarations.
+            
+            We compute the sets of free/bound variables/type variables/type constants for each declaration, then
+            construct a dependency graph -- each node is a declaration, and there's an edge from \(A\) to \(B\) if any
+            of the bound variables/type variables/type constants at \(A\) are free in \(B\). It is important to
+            distinguish between the variables/type variables and type constants, as otherwise name conflicts could occur
+            (we don't rename type constants). This separation is upheld in the compiler by using different types for
+            each, and is represented in the dependency graph below by colouring symbol names blue or red.
+            
+            The strongly connected components of the dependency graph correspond to sets of mutually recursive
+            declarations, and the partial order between components gives us the order to typecheck each set. For
+            example:
 
+            \begin{figure}[h]
+                \begin{haskellfigure}
+                data Bool = False | True    -- d1
+                x = f True                  -- d2
+                f y = g y                   -- d3
+                g y = h y                   -- d4
+                h y = f y                   -- d5
+                \end{haskellfigure}
+                \caption{}
+                \label{code:dependency-graph}
+            \end{figure}
+
+            \begin{figure}[h]
+                \includegraphics[width=0.5\textwidth]{figures/dependency_graph.png}
+                \caption
+                {
+                    The dependency graph for Figure \ref{code:dependency-graph}. Variables in red, type
+                    constants are in blue. Strongly connected components are highlighted.
+                }
+                \label{fig:dependency-graph}
+            \end{figure}
+
+            From the dependency graph, we know we can compile 
 
         }
     }

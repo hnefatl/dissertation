@@ -136,11 +136,11 @@ descriptions below.
 
         \begin{figure}[h]
             \begin{haskellfigure}
-class Convertable a b where
-    convert :: a -> b
-instance Convertable Bool Int where
-    convert True = 1
-    convert False = 0
+            class Convertable a b where
+                convert :: a -> b
+            instance Convertable Bool Int where
+                convert True = 1
+                convert False = 0
             \end{haskellfigure}
             \caption{An example of a multi-parameter typeclass}
         \end{figure}
@@ -148,9 +148,59 @@ instance Convertable Bool Int where
     }
     \subsection{Preprocessor}
     {
+        \subsubsection{Renaming}
+        {
 
-        
+            Haskell allows for multiple variables to share the same name within different scopes, which can increase the
+            complexity of later stages in the pipeline. For example, when typechecking the following code we might
+            conflate the two uses of \haskell{x}, and erroneously infer that they have the same type. A similar problem
+            arises with variable shadowing, when the scopes overlap. The problem also applies to any type variables
+            present in the source -- the type variable \haskell{a} is distinct between the two type signatures:
 
+            \begin{haskellfigure}
+            id :: a -> a
+            id x = x
+
+            const :: a -> b -> a
+            const x _ = x
+            \end{haskellfigure}
+
+            Additionally, variables and type variables live in different worlds. The same token can refer to a variable
+            and a type variable, even within the same scope -- the following code is perfectly valid (but loops
+            forever):
+
+            \begin{haskellfigure}
+            x :: x
+            x = x
+            \end{haskellfigure}
+
+            To eliminate the potential for subtle bugs stemming from this feature, the renamer pass gives each
+            semantically distinct variable and type variable in the source a unique name. It traverses the syntax tree
+            maintaining a mapping from syntactic variable names to a stack of unique semantic variable names
+            (\haskell{Map VariableName [UniqueVariableName]}):
+
+            \begin{itemize}
+            \item When a new syntactic variable comes into scope (eg. from a let binding, a lambda argument, a new type signature, a pattern match...), a fresh semantic variable name is generated and pushed onto the stack.
+            \item Whenever we leave the scope of a syntactic variable, we pop a semantic name off its corresponding stack.
+            \item When we see a use of a syntactic variable, we replace it with the current top of the corresponding
+            stack.
+            \end{itemize}
+        }
+        \subsection{Kind/Class Analysis}
+        {
+
+            The typechecker and deoverloader require information about the kinds of any type constructors (the `type of
+            the type', eg. \haskell{Int :: *} and \haskell{Maybe :: * -> *}), and the methods provided by different
+            classes. This is tricky to compute during typechecking as that pass traverses the AST in dependency order.
+            Instead, we just perform a traversal of the AST early in the pipeline to aggregate the required information.
+
+        }
+        \subsection{Dependency Analysis}
+        {
+
+
+
+        }
     }
 }
 

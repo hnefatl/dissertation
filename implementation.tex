@@ -222,7 +222,7 @@ descriptions below.
             declarations, and the partial order between components gives us the order to typecheck each set. For
             example:
 
-            \begin{figure}[h]
+            \begin{figure}[H]
                 \begin{haskellfigure}
                 data Bool = False | True    -- d1
                 x = f True                  -- d2
@@ -234,7 +234,7 @@ descriptions below.
                 \label{code:dependency-graph}
             \end{figure}
 
-            \begin{figure}[h]
+            \begin{figure}[H]
                 \includegraphics[width=0.5\textwidth]{figures/dependency_graph.png}
                 \caption
                 {
@@ -244,7 +244,95 @@ descriptions below.
                 \label{fig:dependency-graph}
             \end{figure}
 
-            From the dependency graph, we know we can compile 
+            From the dependency graph, we know we have to typecheck \(d2\) last, after both the trio of functions and
+            after the datatype declaration. We also know that we need to typecheck the trio of functions together, as
+            they're mutually recursive.
+
+            This process works for languages without ad-hoc overloading, like SML. However, in Haskell there are some
+            complications introduced by typeclasses:
+
+            \begin{itemize}
+            \item
+            {
+
+                Typeclass member variables can be declared multiple times within the same scope. For example:
+                
+                \begin{haskellfigure}
+                class Num a where
+                    (+) :: a -> a -> a
+                instance Num Int where
+                    x + y = ...
+                instance Num Float where
+                    x + y = ...
+                \end{haskellfigure}
+
+                Here the multiple declarations of \haskell{+} don't conflict: this is a valid program. However, the
+                following program does have conflicting variables, as \haskell{x} is not a typeclass member and is not
+                declared inside an \haskell{instance} declaration:
+
+                \begin{haskellfigure}
+                x = True
+                x = False
+                \end{haskellfigure}
+
+                These declaration conflicts can be expressed in a grid, where:
+
+                \begin{itemize}
+                \item
+                {
+                    
+                    \monospace{SymDef |\(x\)|} and \monospace{SymType |\(x\)|} represent top-level declaration and
+                    type-signature declarations for a symbol \(x\), like \haskell{|\(x\)| = True} and \haskell{|\(x\)| :: Bool}.
+
+                }
+                \item
+                {
+                    
+                    \monospace{ClassSymDef |\(x\)| |\(c\)|} and \monospace{ClassSymType |\(x\)| |\(c\)|} represent
+                    \monospace{SymDef |\(x\)|} and \monospace{SymType |\(x\)|} inside the declaration for a class \(c\),
+                    like \haskell{class |\(c\)| where { |\(x\)| = True ; |\(x\)| :: Bool }}.
+
+                }
+                \item
+                {
+
+                    \monospace{InstSymDef |\(x\)| |\(c\)| |\(t\)|} represents a \monospace{SymType |\(x\)|} inside the
+                    declaration for a class instance \(c\;t\), like \haskell{instance |\(c\)| |\(t\)| where { |\(x\)| = True }}.
+
+                }
+                \end{itemize}
+
+                \begin{figure}[H]
+                \small
+                \setlength{\tabcolsep}{2pt}
+                \begin{tabular}{ l | c c c c c }
+                & \texttt{SymDef} \(x_1\) & \texttt{SymType} \(x_1\) & \texttt{ClassSymDef} \(x_1\) \(c_1\) &
+                \texttt{ClassTypeDef} \(x_1\) \(c_1\) & \texttt{InstSymDef} \(x_1\) \(c_1\) \(t_1\) \\
+                \hline
+                \texttt{SymDef} \(x_2\) & \(x_1=x_2\) & \texttt{False} & \(x_1=x_2\) & \(x_1=x_2\) & \(x_1=x_2\) \\
+                \texttt{SymType} \(x_2\) & & \(x_1=x_2\) & \(x_1=x_2\) & \(x_1=x_2\) & \(x_1=x_2\) \\
+                \texttt{ClassSymDef} \(x_2\) \(c_2\) & & & \(x_1=x_2\) & \(x_1=x_2 \wedge c_1 \neq c_2\) & \(x_1=x_2 \wedge c_1 \neq c_2\) \\
+                \texttt{ClassTypeDef} \(x_2\) \(c_2\) & & & & \(x_1=x_2\) & \(x_1=x_2 \wedge c_1 \neq c_2\) \\
+                \texttt{InstSymDef} \(x_2\) \(c_2\) \(t_2\) & & & & & \(x_1=x_2 \wedge (c_1 \neq c_2 \vee t_1=t_2)\) \\
+                \end{tabular}
+                \end{figure}
+
+            }
+            \item
+            {
+
+                The variables declared within a class declaration are treated as being the binding instance of those
+                variables, whereas the declarations of those variables within the instance declarations are treated as
+                being free uses of them. This is 
+
+            }
+            \item
+            {
+
+                Instance usage is actually syntactic not semantic.
+
+            }
+            \end{itemize}
 
         }
     }

@@ -189,7 +189,7 @@ descriptions below.
 
             A similar mapping is maintained for type variables, with the same rules for maintaining it.
 
-            Type constants such as \haskell{Bool} from \haskell{data Bool = False | True} and typeclass names like
+            Type constants such as \haskell{Bool} from \haskell{data Bool = False \| True} and typeclass names like
             \haskell{Num} from \haskell{class Num a where ...} are not renamed: these names are already guaranteed to be
             unique by the syntax of Haskell, and renaming them means we need to carry more state through the compiler as
             to what they've been renamed to.
@@ -214,9 +214,9 @@ descriptions below.
             We compute the sets of free/bound variables/type variables/type constants for each declaration, then
             construct a dependency graph -- each node is a declaration, and there's an edge from \(A\) to \(B\) if any
             of the bound variables/type variables/type constants at \(A\) are free in \(B\). It is important to
-            distinguish between the variables/type variables and type constants, as otherwise name conflicts could occur
-            (we don't rename type constants). This separation is upheld in the compiler by using different types for
-            each, and is represented in the dependency graph below by colouring symbol names blue or red.
+            distinguish between variables/type variables and type constants, as otherwise name conflicts could occur (as
+            we don't rename type constants). This separation is upheld in the compiler by using different types for
+            each, and is represented in the dependency graph below by colouring variables red and constants blue.
             
             The strongly connected components of the dependency graph correspond to sets of mutually recursive
             declarations, and the partial order between components gives us the order to typecheck each set. For
@@ -244,7 +244,7 @@ descriptions below.
                 \label{fig:dependency-graph}
             \end{figure}
 
-            From the dependency graph, we know we have to typecheck \(d2\) last, after both the trio of functions and
+            From the dependency graph, we know we have to typecheck \(d_2\) last, after both the trio of functions and
             after the datatype declaration. We also know that we need to typecheck the trio of functions together, as
             they're mutually recursive.
 
@@ -257,6 +257,7 @@ descriptions below.
 
                 Typeclass member variables can be declared multiple times within the same scope. For example:
                 
+                \begin{figure}[h]
                 \begin{haskellfigure}
                 class Num a where
                     (+) :: a -> a -> a
@@ -265,15 +266,22 @@ descriptions below.
                 instance Num Float where
                     x + y = ...
                 \end{haskellfigure}
+                \caption{}
+                \label{code:valid-variable-reuse}
+                \end{figure}
 
                 Here the multiple declarations of \haskell{+} don't conflict: this is a valid program. However, the
                 following program does have conflicting variables, as \haskell{x} is not a typeclass member and is not
                 declared inside an \haskell{instance} declaration:
 
+                \begin{figure}[h]
                 \begin{haskellfigure}
                 x = True
                 x = False
                 \end{haskellfigure}
+                \caption{}
+                \label{code:invalid-variable-reuse}
+                \end{figure}
 
                 These declaration conflicts can be expressed in a grid, where:
 
@@ -317,19 +325,53 @@ descriptions below.
                 \end{tabular}
                 \end{figure}
 
-            }
-            \item
-            {
+                \todo[inline]{This table is too big... Could `factor out' the \(x_1 = x_2\) from all cells and remove the \(x\) params to free up space, but then it's less complete.}
 
-                The variables declared within a class declaration are treated as being the binding instance of those
-                variables, whereas the declarations of those variables within the instance declarations are treated as
-                being free uses of them. This is 
+                Using this table we can see that the multiple declarations for \haskell{+} in Figure
+                \ref{code:valid-variable-reuse} do not conflict, while the declarations for \haskell{x} in Figure
+                \ref{code:invalid-variable-reuse} do.
 
             }
             \item
             {
 
-                Instance usage is actually syntactic not semantic.
+                Variable declarations such as \haskell{id = \\x -> x} are usually treated as being the unique binding
+                definition of \haskell{id}, and any other uses within the same level of scope must be free rather than
+                binding (otherwise we have conflicting definitions).
+                
+                However, we treat binding declarations inside \haskell{instance} declarations as actually being free
+                uses rather than binding uses, so that the instance declaration forms a dependence on the class
+                declaration where the variables are bound, ensuring it is typechecked first.
+
+            }
+            \item
+            {
+
+                The dependencies generated by this technique are \textit{syntactic}, not \textit{semantic}: the use of
+                any ad-hoc overloaded variable generates dependencies on the class declaration that introduced the
+                variable, but not the specific instance of the class that provides the definition of the variable used.
+                Consider Figure \ref{code:syntactic-vs-semantic}:
+
+                \begin{figure}[h]
+                \begin{haskellfigure}
+                class Foo a where
+                    foo :: a -> Bool
+                instance Foo Bool where
+                    foo x = x
+                instance Foo [Bool] where
+                    foo xs = all foo xs
+                \end{haskellfigure}
+                \caption{}
+                \label{code:syntactic-vs-semantic}
+                \end{figure}
+
+                The declaration of \haskell{foo} in \haskell{instance Foo [Bool]} semantically depends on the version of
+                \haskell{foo} defined in \haskell{instance Foo Bool}, and yet no dependency will be generated between
+                them as neither declaration binds \haskell{foo}: they will only generate dependencies to \haskell{class
+                Foo a} (and to the declaration of \haskell{Bool} and \haskell{all}).
+
+                Computing the semantic dependencies is too complicated to be done in this pass, so the problem is left
+                and instead solved during the typechecking stage.
 
             }
             \end{itemize}

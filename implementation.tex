@@ -224,7 +224,7 @@ descriptions below.
 
             \begin{figure}[H]
                 \begin{haskellfigure}
-                data Bool = False | True    -- d1
+                data Bool = False \| True   -- d1
                 x = f True                  -- d2
                 f y = g y                   -- d3
                 g y = h y                   -- d4
@@ -377,6 +377,125 @@ descriptions below.
             \end{itemize}
 
         }
+    }
+    \subsection{Type Checking}
+    {
+
+        Type inference and checking is the most complex part of the compiler pipeline. The type system implemented is
+        approximately System \(\text{F}_\omega\) (the polymorphically typed lambda calculus with type constructors)
+        along with algebraic data types and type classes to provide ad-hoc overloading. The approximation is due to a
+        number of alterations made by the Haskell Report to ensure that type inference is decidable, along with the
+        introduction of terms that aren't covered by the pure type system eg. literals such as \haskell{7} and
+        \haskell{"foo"}. Finally, due to the complexity of the implementation there are doubtless bugs affecting
+        correctness.
+        
+        This is a subset of the type system used by GHC (System \(\text{F}_\text{C}\)) as that compiler provides
+        extensions such as GADTs and type families so requires a more complex type system.
+
+        \todo[inline]{Include examples of types demonstrating the features. Think an appendix would be best, or should I just include here?}
+
+        \subsubsection{Type Inference}
+        {
+
+            The implementation is inspired by \cite{THIH}, and proceeds in an intuitive manner matching System F: we
+            process each declaration in dependency order, traversing the AST and tagging each expression with a type
+            variable and unifying types together to derive a substitution from type variables to types. Each term in the
+            syntax has an associated rule for combining the type variables representing the types of its sub-terms,
+            which are computed recursively.
+
+            One departure from the algorithm used for System F is that Haskell doesn't require \(\Lambda\) terms
+            (explicit `forall' terms that generate \(\forall\) quantifiers on type variables): let-bound variables are
+            polymorphic over all their free type variables, while function parameters are never polymorphic. In
+            practice, this means that in Figure \ref{code:polymorphic-let}, \haskell{f :: |\(\forall \alpha.\;\alpha
+            \rightarrow a\)|} whereas \haskell{g :: |\(\alpha \rightarrow \alpha\)|}. The difference in semantics
+            ensures that type inference remains decidable.
+ 
+            \begin{figure}[h]
+            \begin{haskellfigure}
+            let f x = x in const (f True) (f 1) :: Bool -- This is fine
+            (\\g -> const (g True) (g 1)) (\x -> x)     -- This fails to typecheck
+            \end{haskellfigure}
+            \caption{}
+            \label{code:polymorphic-let}
+            \end{figure}
+            
+            Typeclasses introduce extra complexity, as usual: whenever we encounter an overloaded variable such as
+            \haskell{+}, we also generate a typeclass constraint enforcing that the type variable we're currently
+            operating on must be a member of the class providing the variable (in this case \haskell{Num}). The
+            unification process is modified to support propagating these constraints between unified variables.
+
+            Here is an example of how the type inference algorithm proceeds:
+
+            % Explain instantiation of a polymorphic type, reference it for + and add1 later.
+
+            \begin{haskellfigure}
+            add1 x = x + 1
+            y = add1 2
+            \end{haskellfigure}
+
+            We first process the declaration of \haskell{add1} as \haskell{y} depends on it, producing a
+            type-variable-tagged AST and a substitution:
+
+            \begin{figure}[H]
+            \begin{subfigure}[c]{\textwidth}
+                \centering
+                \begin{haskellfigure}
+                add1|\(^\alpha\)| x|\(^\beta\)| = (((+)|\(^{\gamma \rightarrow \gamma \rightarrow \gamma}\)| x|\(^\beta\)|)|\(^\delta\)| 1|\(^\epsilon\)|)|\(^\eta\)|
+                \end{haskellfigure}
+            \end{subfigure}
+
+            \begin{subfigure}[c]{\textwidth}
+                \centering
+                \begin{equation*}
+                \begin{split}
+                    S_\text{add1} & = \text{mgu}(\alpha, \beta \rightarrow \eta) \circ \text{mgu}(\delta, \epsilon \rightarrow \eta) \circ \text{mgu}(\gamma\rightarrow\gamma\rightarrow\gamma, \beta \rightarrow \delta) \\
+                                  & = [\sfrac{\gamma\rightarrow\gamma}{\alpha}, \sfrac{\gamma\rightarrow\gamma}{\delta}, \sfrac{\gamma}{\epsilon}, \sfrac{\gamma}{\eta}]
+                \end{split}
+                \end{equation*}
+            \end{subfigure}
+            \end{figure}
+
+            The type of \haskell{add1} is therefore \(\alpha \; S_\text{add1} = \gamma\rightarrow\gamma\), and as this
+            declaration is let-bound we insert quantifiers to make it polymorphic: \haskell{add1 :: |\(\forall\gamma.\;
+            \gamma\rightarrow\gamma\)|}.
+
+            Processing \haskell{y} gives:
+
+            \begin{figure}[H]
+            \begin{subfigure}[c]{\textwidth}
+                \centering
+                \begin{haskellfigure}
+                y|\(^\iota\)| = (add1|\(^{\theta\rightarrow\theta}\)| 2|\(^\kappa\)|)|\(^\lambda\)|
+                \end{haskellfigure}
+            \end{subfigure}
+
+            \begin{subfigure}[c]{\textwidth}
+                \centering
+                \begin{equation*}
+                \begin{split}
+                    S_\text{y} & = \text{mgu}(\iota, \lambda) \circ \text{mgu}(\theta\rightarrow\theta, \kappa\rightarrow\lambda) \\
+                               & = [\sfrac{\theta}{\kappa}, \sfrac{\theta}{\iota}, \sfrac{\theta}{\lambda}]
+                \end{split}
+                \end{equation*}
+            \end{subfigure}
+            \end{figure}
+
+            As \haskell{y} is let-bound again, we conclude \haskell{y :: |\(\forall \theta. \; \theta\)|}
+
+            % Need to add typeclasses to all the above
+            
+
+        }
+
+        % Instantiation of universal types
+        % Pass for building substitution and doing tagging, pass for updating tags, pass for checking tags?
+        % Patterns
+        % Instance typing, with on-demand loading of instances. Refer back to renaming section
+        % Mention Outside-In(X)
+        % Mention Hindley-Milner is normally implemented impurely with a graph and updating references when types are
+        % resolved. Could have done it that way (maybe should've), but didn't. Compiler is fully pure within the
+        % pipeline.
+
     }
 }
 

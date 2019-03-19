@@ -382,31 +382,42 @@ descriptions below.
     {
 
         Type inference and checking is the most complex part of the compiler pipeline. The type system implemented is
-        approximately System \(\text{F}_\omega\) (the polymorphically typed lambda calculus with type constructors)
-        along with algebraic data types and type classes to provide ad-hoc overloading. The approximation is due to a
-        number of alterations made by the Haskell Report to ensure that type inference is decidable, along with the
-        introduction of terms that aren't covered by the pure type system eg. literals such as \haskell{7} and
-        \haskell{"foo"}. Finally, due to the complexity of the implementation there are doubtless bugs affecting
-        correctness.
+        intended to be similar to GHC's dialect of Haskell: approximately System \(\text{F}_\omega\) (the
+        polymorphically typed lambda calculus with type constructors) along with algebraic data types and type classes
+        to provide ad-hoc overloading. The approximation is due to a number of alterations made by the Haskell Report to
+        ensure that type inference is decidable, along with the introduction of terms that aren't covered by the pure
+        type system eg. literals such as \haskell{7} and \haskell{"foo"}. Finally, due to the complexity of the
+        implementation there will doubtless be bugs affecting correctness in more complex cases not covered by tests.
         
-        This is a subset of the type system used by GHC (System \(\text{F}_\text{C}\)) as that compiler provides
-        extensions such as GADTs and type families so requires a more complex type system.
+        This is a subset of the type system used by GHC (System \(\text{F}_\text{C}\)), as that compiler provides
+        extensions such as GADTs and type families requiring a more complex type system.
 
-        \todo[inline]{Include examples of types demonstrating the features. Think an appendix would be best, or should I just include here?}
+        \todo[inline]{Include examples of types demonstrating the features? Examples below might be sufficient. Think an appendix would be best, or should I just include here?}
+        \todo[inline]{Include simple BNF grammar for the valid types: can modify the one on the HM wiki page}
+
+        \todo[inline]{Substituion section explaining the basic notation? Used quite a lot in the next few subsubsections}
 
         \subsubsection{Type Inference}
         {
 
-            The implementation is inspired by \cite{THIH}, and proceeds in an intuitive manner matching System F: we
-            process each declaration in dependency order, traversing the AST and tagging each expression with a type
+            The implementation is inspired by \cite{THIH}, and proceeds similarly to the Hindley-Milner (HM) type
+            inference algorithm presented in \cite{HM-rules}. Following the naming convention using in \cite{THIH}, we
+            refer to types such as \(\alpha\rightarrow\alpha\) as `simple types' (`monotypes' in HM), types with
+            constraints such as \(\text{Eq}\alpha \Rightarrow \alpha\rightarrow\alpha\rightarrow\text{Bool}\) as
+            `overloaded types', and types involving quantifiers such as \(\forall\alpha.\;\text{Monoid }\alpha
+            \Rightarrow \alpha\rightarrow\alpha\rightarrow\alpha\) as `polymorphic types' (similar to `polytypes' in HM
+            except the quantifiers may wrap an overloaded type or a simple type). It's often helpful to consider simple
+            types as the special case of an overloaded type with an empty context (\(\emptyset \Rightarrow t\)).
+            
+            We process each declaration in dependency order, traversing the AST and tagging each expression with a type
             variable and unifying types together to derive a substitution from type variables to types. Each term in the
             syntax has an associated rule for combining the type variables representing the types of its sub-terms,
             which are computed recursively.
 
-            One departure from the algorithm used for System F is that Haskell doesn't require \(\Lambda\) terms
+            One departure from the HM algorithm is that Haskell doesn't require \(\Lambda\) terms in the source language
             (explicit `forall' terms that generate \(\forall\) quantifiers on type variables): let-bound variables are
-            polymorphic over all their free type variables, while function parameters are never polymorphic. In
-            practice, this means that in Figure \ref{code:polymorphic-let}, \haskell{f :: |\(\forall \alpha.\;\alpha
+            implicitly polymorphic over all their free type variables, while function parameters are never polymorphic.
+            In practice, this means that in Figure \ref{code:polymorphic-let}, \haskell{f :: |\(\forall \alpha.\;\alpha
             \rightarrow a\)|} whereas \haskell{g :: |\(\alpha \rightarrow \alpha\)|}. The difference in semantics
             ensures that type inference remains decidable.
  
@@ -419,14 +430,43 @@ descriptions below.
             \label{code:polymorphic-let}
             \end{figure}
             
-            Typeclasses introduce extra complexity, as usual: whenever we encounter an overloaded variable such as
-            \haskell{+}, we also generate a typeclass constraint enforcing that the type variable we're currently
-            operating on must be a member of the class providing the variable (in this case \haskell{Num}). The
-            unification process is modified to support propagating these constraints between unified variables.
+            Another major difference from HM is the introduction of typeclasses: whenever we encounter an overloaded
+            variable such as \haskell{+}, we split the overloaded type into the constraints \(\{\text{Num }\alpha\}\)
+            and the simple type \(\alpha\rightarrow\alpha\rightarrow\alpha\). Unification can be performed as in HM on
+            the simple types, but we also maintain a global set of the constraints on type variables that we encounter.
+            After unification has completed, we use this set to add the typeclass constraints to the inferred types.
+
+            The final important difference from HM is in the instantiation of polymorphic types: the \([\texttt{Inst}]\)
+            rule in HM allows for terms with polymorphic types to be reused with different argument types, but it needs
+            a slight modification to handle type variable constraints introduced by overloaded types:
+            
+            \begin{figure*}[h]
+            \centering
+            \begin{subfigure}[t]{0.3\textwidth}
+            \begin{displaymath}
+            \prftree[r]{\([\text{Inst}]\)}
+            {\prfassumption{\Gamma\vdash e : \tau'}}
+            {\prfassumption{\tau' \sqsubseteq \tau}}
+            {\Gamma\vdash e : \tau}
+            \end{displaymath}
+            \caption*{The original rule from HM}
+            \end{subfigure}
+            ~
+            \begin{subfigure}[t]{0.6\textwidth}
+            \begin{displaymath}
+            \prftree[r]{\([\text{Inst}]\)}
+            {\prfassumption{\Gamma\stackrel{\Delta}{\vdash} e : C\Rightarrow\tau'}}
+            {\prfassumption{\tau' \sqsubseteq \tau}}
+            {\prfassumption{\theta = \text{mgu}(\tau, \tau')}}
+            {\Gamma\stackrel{\Delta\;\cup\;C\theta}{\vdash} e : C\theta\Rightarrow\tau}
+            \end{displaymath}
+            \caption*{A modified rule handling type classes. \(\Delta\) is the set of type variable constraints, built up throughout uses of the rules.}
+            \end{subfigure}
+            \end{figure*}
+
+            \todo[inline]{Bother explaining \(\sqsubseteq\) or just say it means `x is more general than y'? Not exactly going into detail here anyway}
 
             Here is an example of how the type inference algorithm proceeds:
-
-            % Explain instantiation of a polymorphic type, reference it for + and add1 later.
 
             \begin{haskellfigure}
             add1 x = x + 1
@@ -437,14 +477,20 @@ descriptions below.
             type-variable-tagged AST and a substitution:
 
             \begin{figure}[H]
-            \begin{subfigure}[c]{\textwidth}
                 \centering
                 \begin{haskellfigure}
                 add1|\(^\alpha\)| x|\(^\beta\)| = (((+)|\(^{\gamma \rightarrow \gamma \rightarrow \gamma}\)| x|\(^\beta\)|)|\(^\delta\)| 1|\(^\epsilon\)|)|\(^\eta\)|
                 \end{haskellfigure}
-            \end{subfigure}
+            \end{figure}
 
-            \begin{subfigure}[c]{\textwidth}
+            We know the type of \haskell{+} is \(\text{Num }\gamma \Rightarrow
+            \gamma\rightarrow\gamma\rightarrow\gamma\) from the definition of \haskell{+} within the typeclass
+            \haskell{Num}, which would have been processed prior to this example. We split the overloaded type into the
+            type variable constraints (\(\{\text{Num }\gamma\}\)) and the simple type
+            (\(\gamma\rightarrow\gamma\rightarrow\gamma\)), and use the simple type for unification and add the
+            constraints to a global set of type variable constraints.
+
+            \begin{figure}
                 \centering
                 \begin{equation*}
                 \begin{split}
@@ -452,7 +498,6 @@ descriptions below.
                                   & = [\sfrac{\gamma\rightarrow\gamma}{\alpha}, \sfrac{\gamma\rightarrow\gamma}{\delta}, \sfrac{\gamma}{\epsilon}, \sfrac{\gamma}{\eta}]
                 \end{split}
                 \end{equation*}
-            \end{subfigure}
             \end{figure}
 
             The type of \haskell{add1} is therefore \(\alpha \; S_\text{add1} = \gamma\rightarrow\gamma\), and as this

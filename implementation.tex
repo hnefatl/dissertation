@@ -180,7 +180,7 @@ descriptions below.
             (\haskell{Map VariableName [UniqueVariableName]}):
 
             \begin{itemize}
-            \item When a new syntactic variable comes into scope (eg. from a let binding, a lambda argument, a new type signature, a pattern match...), a fresh semantic variable name is generated and pushed onto the stack.
+            \item When a new syntactic variable comes into scope (eg.\ from a let binding, a lambda argument, a new type signature, a pattern match...), a fresh semantic variable name is generated and pushed onto the stack.
             \item Whenever we leave the scope of a syntactic variable, we pop a semantic name off its corresponding
             stack.
             \item When we see a use of a syntactic variable, we replace it with the current top of the corresponding
@@ -199,7 +199,7 @@ descriptions below.
         {
 
             The typechecker and deoverloader require information about the kinds of any type constructors (the `type of
-            the type', eg. \haskell{Int :: *} and \haskell{Maybe :: * -> *}), and the methods provided by different
+            the type', eg.\ \haskell{Int :: *} and \haskell{Maybe :: * -> *}), and the methods provided by different
             classes. This is tricky to compute during typechecking as that pass traverses the AST in dependency order.
             Instead, we just perform a traversal of the AST early in the pipeline to aggregate the required information.
 
@@ -375,10 +375,10 @@ descriptions below.
 
             }
             \end{itemize}
-
         }
+
     }
-    \subsection{Type Checking}
+    \subsection{Type Checker}
     {
 
         Type inference and checking is the most complex part of the compiler pipeline. The type system implemented is
@@ -386,7 +386,7 @@ descriptions below.
         polymorphically typed lambda calculus with type constructors) along with algebraic data types and type classes
         to provide ad-hoc overloading. The approximation is due to a number of alterations made by the Haskell Report to
         ensure that type inference is decidable, along with the introduction of terms that aren't covered by the pure
-        type system eg. literals such as \haskell{7} and \haskell{"foo"}. Finally, due to the complexity of the
+        type system eg.\ literals such as \haskell{7} and \haskell{"foo"}. Finally, due to the complexity of the
         implementation there will doubtless be bugs affecting correctness in more complex cases not covered by tests.
         
         This is a subset of the type system used by GHC (System \(\text{F}_\text{C}\)), as that compiler provides
@@ -399,6 +399,16 @@ descriptions below.
 
         \subsubsection{Type Inference}
         {
+            \todo[inline]{This whole section needs a lot of attention. The process is complex, maybe need to present the HM rules and their haskell-style variations? Nontrivial}
+
+            % Instantiation of universal types
+            % Pass for building substitution and doing tagging, pass for updating tags, pass for checking tags?
+            % Patterns
+            % Instance typing, with on-demand loading of instances. Refer back to renaming section
+            % Mention Outside-In(X) as improvement
+            % Mention Hindley-Milner is normally implemented impurely with a graph and updating references when types
+            % are resolved. Could have done it that way (maybe should've), but didn't. Compiler is fully pure within the
+            % pipeline.
 
             The implementation is inspired by \cite{THIH}, and proceeds similarly to the Hindley-Milner (HM) type
             inference algorithm presented in \cite{HM-rules}. Following the naming convention using in \cite{THIH}, we
@@ -437,8 +447,8 @@ descriptions below.
             After unification has completed, we use this set to add the typeclass constraints to the inferred types.
 
             The final important difference from HM is in the instantiation of polymorphic types: the \([\texttt{Inst}]\)
-            rule in HM allows for terms with polymorphic types to be reused with different argument types, but it needs
-            a slight modification to handle type variable constraints introduced by overloaded types:
+            rule in HM allows for terms with polymorphic types to be reused at call sites with different argument types,
+            but it needs a slight modification to handle type variable constraints introduced by overloaded types:
             
             \begin{figure*}[h]
             \centering
@@ -465,30 +475,33 @@ descriptions below.
             \end{figure*}
 
             \todo[inline]{Bother explaining \(\sqsubseteq\) or just say it means `x is more general than y'? Not exactly going into detail here anyway}
+            \todo[inline]{Yeah this is kinda obscure...}
 
-            Here is an example of how the type inference algorithm proceeds:
+            Here is an example of how the type inference algorithm proceeds on a simple Haskell program:
+            \todo[inline]{Want to distinguish as a different section from the above somehow}
 
             \begin{haskellfigure}
             add1 x = x + 1
             y = add1 2
             \end{haskellfigure}
 
-            We first process the declaration of \haskell{add1} as \haskell{y} depends on it, producing a
-            type-variable-tagged AST and a substitution:
+            As the definition of \haskell{y} depends on the definition of \haskell{add1} we process \haskell{add1}
+            first, converting the infix operator into a prefix operator, and producing a type-variable-tagged AST:
 
-            \begin{figure}[H]
-                \centering
-                \begin{haskellfigure}
-                add1|\(^\alpha\)| x|\(^\beta\)| = (((+)|\(^{\gamma \rightarrow \gamma \rightarrow \gamma}\)| x|\(^\beta\)|)|\(^\delta\)| 1|\(^\epsilon\)|)|\(^\eta\)|
-                \end{haskellfigure}
-            \end{figure}
+            \begin{haskellfigure}
+            add1|\(^\alpha\)| x|\(^\beta\)| = (((+)|\(^{\gamma \rightarrow \gamma \rightarrow \gamma}\)|x|\(^\beta\)|)|\(^\delta\)| 1|\(^\epsilon\)|)|\(^\eta\)|
+            \end{haskellfigure}
 
-            We know the type of \haskell{+} is \(\text{Num }\gamma \Rightarrow
-            \gamma\rightarrow\gamma\rightarrow\gamma\) from the definition of \haskell{+} within the typeclass
-            \haskell{Num}, which would have been processed prior to this example. We split the overloaded type into the
-            type variable constraints (\(\{\text{Num }\gamma\}\)) and the simple type
+            We know the type of \haskell{+} is \(\forall\omega.\;\text{Num }\omega \Rightarrow
+            \omega\rightarrow\omega\rightarrow\omega\) from the definition of \haskell{+} within the typeclass
+            \haskell{Num}, which would have been processed prior to this example. We instantiate this to fit this
+            specific call site (remove the quantifier and replace the quantified type variables with fresh type
+            variables) \(\text{Num }\gamma \Rightarrow \gamma\rightarrow\gamma\rightarrow\gamma\), then split the
+            overloaded type into the type variable constraints (\(\{\text{Num }\gamma\}\)) and the simple type
             (\(\gamma\rightarrow\gamma\rightarrow\gamma\)), and use the simple type for unification and add the
             constraints to a global set of type variable constraints.
+
+            Unifying the 
 
             \begin{figure}
                 \centering
@@ -525,22 +538,89 @@ descriptions below.
             \end{subfigure}
             \end{figure}
 
-            As \haskell{y} is let-bound again, we conclude \haskell{y :: |\(\forall \theta. \; \theta\)|}
+            As \haskell{y} is let-bound again, we conclude \haskell{y :: |\(\forall \theta. \; \)|}.
 
             % Need to add typeclasses to all the above
-            
-
         }
 
-        % Instantiation of universal types
-        % Pass for building substitution and doing tagging, pass for updating tags, pass for checking tags?
-        % Patterns
-        % Instance typing, with on-demand loading of instances. Refer back to renaming section
-        % Mention Outside-In(X)
-        % Mention Hindley-Milner is normally implemented impurely with a graph and updating references when types are
-        % resolved. Could have done it that way (maybe should've), but didn't. Compiler is fully pure within the
-        % pipeline.
 
+        \subsubsection*{Deoverloader}
+        {
+
+            The deoverloading stage performs a translation which eliminates typeclasses, resulting in an AST tagged with
+            types that no longer have type contexts. The implementation of typeclasses chosen was dictionary passing.
+
+            To convert \haskell{add1 x = (+) x 1} with type \(\forall \alpha.\; \text{Num }\alpha \Rightarrow
+            \alpha\rightarrow\alpha\) to a non-overloaded function, we can add an extra argument that carries the
+            `implementation' of the \(\text{Num }\alpha\) constraint, which we then pass down to the \haskell{+}
+            function: \haskell{add1' dNum x = (+) dNum x 1}.
+
+            \todo[inline]{Alternative approaches than dictionary passing?}
+
+            The approach used here is to perform a source-to-source transformation on the AST that replaces
+            typeclass/instance declarations with datatype/value/function declarations.
+
+            \begin{haskellfigure}
+            class Eq a where
+                (==), (/=) :: a -> a -> Bool
+            instance Eq Bool where
+                True == True = True
+                False == False = True
+                _ == _ = True
+                x /= y = not (x == y)
+            \end{haskellfigure}
+
+            Typeclasses are replaced by datatypes equivalent to tuples with an element for each function defined by the
+            class, and instances are replaced by values of the respective class' datatype, filling in the elements using
+            the implementation provided by the instance declaration. Extractor functions are added which pull specific
+            elements out of the datatype to get at the actual implementation of the function.
+
+            \begin{haskellfigure}
+            -- Implementation of the typeclass
+            data Eq a = Eq (a -> a -> Bool) (a -> a -> Bool)
+
+            -- The functions defined by the typeclass extract the implementation functions
+            (==), (/=) :: Eq a -> a -> a -> Bool
+            (==) (Eq eq _) = eq
+            (/=) (Eq _ neq) = neq
+
+            -- The implementation of the typeclass instance
+            dEqBool :: Eq Bool
+            dEqBool = Eq dEqBoolEq dEqBoolNeq
+
+            -- The function implementations defined in the instance
+            dEqBoolEq, dEqBoolNeq :: Bool -> Bool -> Bool
+            dEqBoolEq True True = True
+            dEqBoolEq False False = True
+            dEqBoolEq _ _ = False
+            dEqBoolNeq x y = not (dEqBoolEq x y)
+            \end{haskellfigure}
+
+
+            To deoverload declarations using overloaded values, we essentially convert declarations of functions with
+            types like \(\text{Num}\;\alpha\Rightarrow\alpha\rightarrow\alpha\) to
+            \(\text{Num}\;\alpha\rightarrow\alpha\rightarrow\alpha\): we replace typeclass constraints with formal
+            arguments to carry the implementation dictionaries. Similarly when using an expression of overloaded type,
+            we add an actual argument to the call site for each typeclass constraint to account for the extra arguments
+            we added to the definition.
+            
+            For example, \haskell{foo x = x == 1} deoverloads to \haskell{add1 dEqa x = (==) dEqa x 1}: we add an extra
+            formal argument to the function declaration, and insert it in the call site to \haskell{+}.
+
+            In order to know what variables to insert at call sites, the names of in-scope variables holding values of
+            typeclass implementations are stored while traversing the AST. Initially the mapping contains the ground
+            instances provided by top-level instance declarations (eg.\
+            \(\{\text{Num\;Int}\mapsto\texttt{dNumInt},\;\text{Eq\;Int}\mapsto\texttt{dEqInt},\;...\}\)), and we update
+            it to include any in-scope extra arguments we add to functions while deoverloading them. When we encounter
+            an overloaded variable, we insert arguments for each type constraint by finding matching constraints within
+            our mapping.
+
+            One special case in the process is the handling of literals. Whilst arbitrary expressions with overloaded
+            types always require a dictionary to be passed (consider that the innocent-looking \haskell{x} in
+            \haskell{let x = 1 + 2 in x} involves an application of \haskell{+} which requires a dictionary to provide
+            the implementation), literals do not require a dictionary as they can never perform any computation.
+
+        }
     }
 }
 

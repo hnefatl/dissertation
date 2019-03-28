@@ -31,8 +31,7 @@ descriptions below.
     {
 
         The renamer renames each variable so that later stages can assume each variable name is unique:
-        this reduces complexity by removing the possibility of variable shadowing (eg.\ \haskell{let x = 1 in let x
-        = 2 in x}).
+        this reduces complexity by removing the possibility of variable shadowing (eg.\ \haskell{let x = 1 in let x = 2 in x}).
 
     }
     \item
@@ -189,7 +188,7 @@ descriptions below.
 
             A similar mapping is maintained for type variables, with the same rules for maintaining it.
 
-            Type constants such as \haskell{Bool} from \haskell{data Bool = False \| True} and typeclass names like
+            Type constants such as \haskell{Bool} from \haskell{data Bool = False | True} and typeclass names like
             \haskell{Num} from \haskell{class Num a where ...} are not renamed: these names are already guaranteed to be
             unique by the syntax of Haskell, and renaming them means we need to carry more state through the compiler as
             to what they've been renamed to.
@@ -224,7 +223,7 @@ descriptions below.
 
             \begin{figure}[H]
                 \begin{haskellfigure}
-                data Bool = False \| True   -- d1
+                data Bool = False | True    -- d1
                 x = f True                  -- d2
                 f y = g y                   -- d3
                 g y = h y                   -- d4
@@ -288,24 +287,24 @@ descriptions below.
                 \begin{itemize}
                 \item
                 {
-                    
-                    \monospace{SymDef |\(x\)|} and \monospace{SymType |\(x\)|} represent top-level declaration and
-                    type-signature declarations for a symbol \(x\), like \haskell{|\(x\)| = True} and \haskell{|\(x\)| :: Bool}.
+
+                    \monospace{SymDef #\(x\)#} and \monospace{SymType #\(x\)#} represent top-level declaration and
+                    type-signature declarations for a symbol \(x\), like \haskell{#\(x\)# = True} and \haskell{#\(x\)# :: Bool}.
 
                 }
                 \item
                 {
                     
-                    \monospace{ClassSymDef |\(x\)| |\(c\)|} and \monospace{ClassSymType |\(x\)| |\(c\)|} represent
-                    \monospace{SymDef |\(x\)|} and \monospace{SymType |\(x\)|} inside the declaration for a class \(c\),
-                    like \haskell{class |\(c\)| where { |\(x\)| = True ; |\(x\)| :: Bool }}.
+                    \monospace{ClassSymDef #\(x\)# #\(c\)#} and \monospace{ClassSymType #\(x\)# #\(c\)#} represent
+                    \monospace{SymDef #\(x\)#} and \monospace{SymType #\(x\)#} inside the declaration for a class \(c\),
+                    like \haskell{class #\(c\)# where { #\(x\)# = True ; #\(x\)# :: Bool }}.
 
                 }
                 \item
                 {
 
-                    \monospace{InstSymDef |\(x\)| |\(c\)| |\(t\)|} represents a \monospace{SymType |\(x\)|} inside the
-                    declaration for a class instance \(c\;t\), like \haskell{instance |\(c\)| |\(t\)| where { |\(x\)| = True }}.
+                    \monospace{InstSymDef #\(x\)# #\(c\)# #\(t\)#} represents a \monospace{SymType #\(x\)#} inside the
+                    declaration for a class instance \(c\;t\), like \haskell{instance #\(c\)# #\(t\)# where { #\(x\)# = True }}.
 
                 }
                 \end{itemize}
@@ -392,6 +391,43 @@ descriptions below.
         This is a subset of the type system used by GHC (System \(\text{F}_\text{C}\)), as that compiler provides
         extensions such as GADTs and type families requiring a more complex type system.
 
+        The full grammar of types as defined in the compiler are explained below:
+
+        \begin{haskellfigure}
+        data Kind = KindStar
+                  | KindFun Kind Kind
+        \end{haskellfigure}
+
+        A \haskell{Kind} is `the type of a type', and is used to describe type constructors: what characterises
+        \(\text{Maybe}\) versus \(\text{Maybe}\;\alpha\)?
+        
+        : while the term \haskell{f} might have the type
+        \(\alpha\rightarrow\text{Maybe}\;\alpha\), the type has \textit{kind} \texttt{*}. 
+
+        \todo[inline]{Finish describing kinds and the other type datatypes}
+
+        \todo[inline]{Work out how to use | without the red box in the pdf.}
+
+        \begin{haskellfigure}
+        data TypeVariable = TypeVariable TypeVariableName Kind
+
+        data Type = TypeVar TypeVariable
+                  | TypeCon TypeConstant
+                  | TypeApp Type Type Kind
+
+
+        data TypePredicate = IsInstance ClassName Type
+
+        data Qualified a = Qualified (Set TypePredicate) a
+        type QualifiedType = Qualified Type
+
+        data Quantified a = Quantified (Set TypeVariable) a
+        type QuantifiedType = Quantified QualifiedType
+        type QuantifiedSimpleType = Quantified Type
+        \end{haskellfigure}
+
+
+
         \todo[inline]{Include examples of types demonstrating the features? Examples below might be sufficient. Think an appendix would be best, or should I just include here?}
         \todo[inline]{Include simple BNF grammar for the valid types: can modify the one on the HM wiki page}
 
@@ -427,8 +463,8 @@ descriptions below.
             One departure from the HM algorithm is that Haskell doesn't require \(\Lambda\) terms in the source language
             (explicit `forall' terms that generate \(\forall\) quantifiers on type variables): let-bound variables are
             implicitly polymorphic over all their free type variables, while function parameters are never polymorphic.
-            In practice, this means that in Figure \ref{code:polymorphic-let}, \haskell{f :: |\(\forall \alpha.\;\alpha
-            \rightarrow a\)|} whereas \haskell{g :: |\(\alpha \rightarrow \alpha\)|}. The difference in semantics
+            In practice, this means that in Figure \ref{code:polymorphic-let}, \haskell{f :: #\(\forall \alpha.\;\alpha
+            \rightarrow a\)#} whereas \haskell{g :: #\(\alpha \rightarrow \alpha\)#}. The difference in semantics
             ensures that type inference remains decidable.
  
             \begin{figure}[h]
@@ -489,7 +525,7 @@ descriptions below.
             first, converting the infix operator into a prefix operator, and producing a type-variable-tagged AST:
 
             \begin{haskellfigure}
-            add1|\(^\alpha\)| x|\(^\beta\)| = (((+)|\(^{\gamma \rightarrow \gamma \rightarrow \gamma}\)|x|\(^\beta\)|)|\(^\delta\)| 1|\(^\epsilon\)|)|\(^\eta\)|
+            add1#\(^\alpha\)# x#\(^\beta\)# = (((+)#\(^{\gamma \rightarrow \gamma \rightarrow \gamma}\)#x#\(^\beta\)#)#\(^\delta\)# 1#\(^\epsilon\)#)#\(^\eta\)|
             \end{haskellfigure}
 
             We know the type of \haskell{+} is \(\forall\omega.\;\text{Num }\omega \Rightarrow
@@ -514,8 +550,8 @@ descriptions below.
             \end{figure}
 
             The type of \haskell{add1} is therefore \(\alpha \; S_\text{add1} = \gamma\rightarrow\gamma\), and as this
-            declaration is let-bound we insert quantifiers to make it polymorphic: \haskell{add1 :: |\(\forall\gamma.\;
-            \gamma\rightarrow\gamma\)|}.
+            declaration is let-bound we insert quantifiers to make it polymorphic: \haskell{add1 :: #\(\forall\gamma.\;
+            \gamma\rightarrow\gamma\)#}.
 
             Processing \haskell{y} gives:
 
@@ -523,7 +559,7 @@ descriptions below.
             \begin{subfigure}[c]{\textwidth}
                 \centering
                 \begin{haskellfigure}
-                y|\(^\iota\)| = (add1|\(^{\theta\rightarrow\theta}\)| 2|\(^\kappa\)|)|\(^\lambda\)|
+                y#\(^\iota\)# = (add1#\(^{\theta\rightarrow\theta}\)# 2#\(^\kappa\)#)#\(^\lambda\)|
                 \end{haskellfigure}
             \end{subfigure}
 
@@ -619,6 +655,43 @@ descriptions below.
             types always require a dictionary to be passed (consider that the innocent-looking \haskell{x} in
             \haskell{let x = 1 + 2 in x} involves an application of \haskell{+} which requires a dictionary to provide
             the implementation), literals do not require a dictionary as they can never perform any computation.
+
+        }
+    }
+    \subsection{Lowering and Intermediate Languages}
+    {
+
+        There are two intermediate languages within the compiler, imaginatively named Intermediate Languages A and B
+        (ILA and ILB respectively). There is also a minor language named ILA-Administrative Normal Form (ILA-ANF), which
+        is simply a subset of ILA that helps restrict the terms to those in Administrative Normal Form (ANF).
+
+        \todo[inline]{For each: why needed, BNF grammar, strengths. Probably don't go into details of translation?}
+
+        \subsubsection*{Intermediate Language A}
+        {
+
+            ILA is a subset of GHC's Core intermediate language, removing terms which are used for advanced language
+            features like GADTs, as they are not supported by this compiler. Below is the full definition of ILA:
+
+            \begin{haskellfigure}
+            data Expr = Var VariableName Type
+                      | Con VariableName Type
+                      | Lit Literal Type
+                      | App Expr Expr
+                      | Lam VariableName Type Expr
+                      | Let VariableName Type Expr Expr
+                      | Case Expr [VariableName] [Alt Expr]
+                      | Type Type
+
+            data Literal = LiteralInt Integer
+                         | LiteralChar Char
+
+            data Alt a = Alt AltConstructor a
+
+            data AltConstructor = DataCon VariableName [VariableName]
+                                | LitCon Literal
+                                | Default
+            \end{haskellfigure}
 
         }
     }

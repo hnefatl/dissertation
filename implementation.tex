@@ -672,8 +672,13 @@ descriptions below.
         {
 
             ILA is a subset of GHC's Core intermediate language, removing terms which are used for advanced language
-            features like GADTs, as they are not supported by this compiler. Below is the full definition of ILA:
+            features like GADTs, as they are not supported by this compiler. Haskell 98 has hundreds of node types in
+            its
+            AST\footnote{\url{https://hackage.haskell.org/package/haskell-src-1.0.3.0/docs/Language-Haskell-Syntax.html}\todo[inline]{Find
+            version-independent link}}, whereas ILA has far fewer: this makes it far easier to transform. Below is the
+            full definition of ILA:
 
+            \todo[inline]{Give BNF instead of Haskell ADTs?}
             \begin{haskellfigure}
             data Expr = Var VariableName Type
                       | Con VariableName Type
@@ -692,7 +697,74 @@ descriptions below.
             data AltConstructor = DataCon VariableName [VariableName]
                                 | LitCon Literal
                                 | Default
+
+            data Binding a = NonRec VariableName a
+                           | Rec (M.Map VariableName a)
             \end{haskellfigure}
+
+            One notable feature of ILA is that it carries type information: leaf nodes such as \monospace{Var} are
+            tagged with a type. GHC's Core IL is fully explicitly typed under a variant of System F, which allows for
+            `core linting' passes in-between transformations to ensure they maintain type-correctness. The type
+            annotations on ILA are not sufficient for such complete typechecking, but do allow for some sanity checks
+            and are necessary for lower stages of the compiler such as code generation. 
+
+            ILA is still quite high-level, so many of the language constructs have similar semantics to their Haskell
+            counterparts. The main benefit in this lowering pass is to collapse redundant Haskell syntax into a smaller
+            grammar.
+
+            Most of these constructors have obvious usages, but some are more subtle: \monospace{Con} represents a data
+            constructor such as \haskell{True} or \haskell{Just}. \monospace{App} is application of expressions, which
+            covers both function applications and data constructor applications (eg.\ \monospace{App (Var "f" (Bool
+            #\(\rightarrow\)# Bool)) (Con "True" Bool)} and \monospace{App (Con "Just" (Int #\(\rightarrow\)# Maybe
+            Int)) (Var "x" Int)}).
+            \todo[inline]{Work out why spacing is weird here}
+
+            \monospace{Lam #\(x\ t\ e\)#} represents a lambda term like \(\lambda x : t.\;e\), and \monospace{Let #\(x\
+            t\ e_1\ e_2\)#} represents a term like \(\text{let } x:t = e_1 \text{ in } e_2\).
+
+            \todo[inline]{Lam and Let are most easily explained as lambda terms, but App is most easily demonstrated with some code, and the switch between explanation styles is a bit jarring.}
+            
+            \monospace{Case #\(e\ vs\ as\)#} represents a multi-way switch on the value of an expression \(e\) (the
+            `head' or `scrutinee'), matching against a number of possible matches (`alts') from the list \(as\), where
+            the evaluated value of \(e\) is bound to each of the variables in \(vs\). The additional binding variables
+            can be useful when the scrutinee expression is reused within some number of the alts.
+
+            \todo[inline]{\monospace{Type} isn't really used afaik, it's a leftover from when I was trying to do System F style types. Should see if I can remove it.}
+            
+            The alts in a \monospace{Case} expression, of the form \monospace{Alt #\(c\ b\)#}, match the value of
+            evaluating the scrutinee against the data constructor \(c\), then evaluates the \(b\) from whichever alt
+            matched. \monospace{AltConstructor} represents the potential matches: either literal values, a data
+            constructor with a number of variables to be bound, or a `match-anything' default value.
+
+
+            % Begin pattern matching spiel
+            Haskell has rich syntax for pattern matching, and lowering it into ILA isn't a trivial process. An example
+            pattern match could be \haskell{Just x@(y:z) = Just [1, 2]}, binding \haskell{x = [1, 2]}, \haskell{y = 1},
+            and \haskell{z = [2]}. Multiple pattern matches can also be related, as in function definitions:
+
+            \begin{haskellfigure}
+            f (x, Just y) = x + y
+            f (x, Nothing) = x
+            \end{haskellfigure}
+
+            Additionally, pattern matches can occur in a number of places: pattern-binding declarations such as
+            \haskell{let (x, y) = z in ...}, functions definitions like the example above, lambda expressions, and
+            \haskell{case} expressions (\haskell{case Just 1 of { Nothing -> ... ; Just x -> ... }}). The heterogeneity
+            of use sites demands a flexible approach to translating pattern matches that can be reused for each
+            instance.
+
+            My initial implementation worked correctly for single-pattern uses, such as the \haskell{let} example above,
+            but didn't support multiple parallel patterns as used in \haskell{case} expressions and function
+            definitions. The current implementation is now based off the approach given in Chapter 5 of
+            \cite{ImplFunLang}, which is a more general version of my initial algorithm.
+
+            % End pattern matching spiel
+
+        }
+        \subsubsection*{Intermediate Language A - Administrative Normal Form}
+        {
+
+            Administrative Normal Form (ANF) is a simpler alternative to Continuation Passing Style (CPS) that 
 
         }
     }

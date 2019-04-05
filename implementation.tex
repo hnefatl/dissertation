@@ -451,8 +451,8 @@ descriptions below.
             % are resolved. Could have done it that way (maybe should've), but didn't. Compiler is fully pure within the
             % pipeline.
 
-            The implementation is inspired by \cite{THIH}, and proceeds similarly to the Hindley-Milner (HM) type
-            inference algorithm presented in \cite{HM-rules}. Following the naming convention using in \cite{THIH}, we
+            The implementation is inspired by\cite{THIH}, and proceeds similarly to the Hindley-Milner (HM) type
+            inference algorithm presented in\cite{HM-rules}. Following the naming convention using in\cite{THIH}, we
             refer to types such as \(\alpha\rightarrow\alpha\) as `simple types' (`monotypes' in HM), types with
             constraints such as \(\text{Eq}\alpha \Rightarrow \alpha\rightarrow\alpha\rightarrow\text{Bool}\) as
             `overloaded types', and types involving quantifiers such as \(\forall\alpha.\;\text{Monoid }\alpha
@@ -699,8 +699,11 @@ descriptions below.
                                 | Default
 
             data Binding a = NonRec VariableName a
-                           | Rec (M.Map VariableName a)
+                           | Rec (Map VariableName a)
             \end{haskellfigure}
+
+            A Haskell program is lowered by this pass into a list of \haskell{Binding Expr}: a list of recursive or
+            non-recursive bindings of expressions to variables.
 
             One notable feature of ILA is that it carries type information: leaf nodes such as \monospace{Var} are
             tagged with a type. GHC's Core IL is fully explicitly typed under a variant of System F, which allows for
@@ -737,10 +740,17 @@ descriptions below.
             constructor with a number of variables to be bound, or a `match-anything' default value.
 
 
+            Many syntax features in Haskell are just syntactic sugar, and are simple to desugar (list literals like
+            \haskell{[1, 2]} are desugared to \haskell{1:2:[]}). Others are more involved, such as converting
+            \haskell{if x then y else z} expressions into \haskell{case x of { True -> y ; False -> z }}
+            (\haskell{Bool}is just defined as an ADT in Haskell, there's no special language support for it).
+
+            
             % Begin pattern matching spiel
-            Haskell has rich syntax for pattern matching, and lowering it into ILA isn't a trivial process. An example
-            pattern match could be \haskell{Just x@(y:z) = Just [1, 2]}, binding \haskell{x = [1, 2]}, \haskell{y = 1},
-            and \haskell{z = [2]}. Multiple pattern matches can also be related, as in function definitions:
+            Other language features are non-trivial to lower, such as the rich syntax Haskell uses for pattern matching.
+            An example pattern match could be \haskell{Just x@(y:z) = Just [1, 2]}, binding \haskell{x = [1, 2]},
+            \haskell{y = 1}, and \haskell{z = [2]}. Multiple pattern matches can also be related, as in function
+            definitions:
 
             \begin{haskellfigure}
             f (x, Just y) = x + y
@@ -758,13 +768,61 @@ descriptions below.
             definitions. The current implementation is now based off the approach given in Chapter 5 of
             \cite{ImplFunLang}, which is a more general version of my initial algorithm.
 
+            \todo[inline]{Feel like this needs a little bit more}
+
             % End pattern matching spiel
 
         }
         \subsubsection*{Intermediate Language A - Administrative Normal Form}
         {
 
-            Administrative Normal Form (ANF) is a simpler alternative to Continuation Passing Style (CPS) that 
+            Administrative Normal Form (ANF) is a style of writing programs in which all arguments to functions must be
+            trivial (a variable, literal, or other irreducible `value' like a lambda expression). ANF is an alternative
+            to Continuation Passing Style (CPS) as a style of intermediate language but can perform transformations in a
+            single pass that would take multiple passes on a CPS program\cite{ANF}.
+
+            This compiler uses ANF as it lends itself well to conceptualising lazy evaluation: as each complex
+            expression is referred to through a variable, if the expression is evaluated by one computation then all
+            other references to the variable transparently reference the resulting value, rather than a duplicate of the
+            computation.
+
+            ILA-ANF is a subset of ILA which uses a more restricted grammar to enforce more invariants on the language
+            and guide the AST into ANF. The full definition of ILA-ANF is given below, and reuses the definitions of
+            \haskell{Binding} and \haskell{Alt} from ILA.
+
+            In the case of ILA-ANF, `trivial' terms are taken to be variables, data constructors, and literals. Note
+            that this excludes lambda terms, which is somewhat unusual. Instead, lambda terms must immediately be bound
+            to a variable: this restriction is enforced by the \haskell{AnfRhs} term in the grammar below.
+
+            \todo[inline]{Why lambda terms not trivial? General design-decision explanation. Makes thunk model explicit + easier to generate code?}
+
+            \begin{haskellfigure}
+            data AnfTrivial = Var VariableName Type
+                            | Con VariableName Type
+                            | Lit Literal Type
+                            | Type Type
+
+            data AnfApplication = App AnfApplication AnfTrivial
+                                | TrivApp AnfTrivial
+
+            data AnfComplex = Let VariableName Type AnfRhs AnfComplex
+                            | Case AnfComplex Type [VariableName] [Alt AnfComplex]
+                            | CompApp AnfApplication
+                            | Trivial AnfTrivial
+
+            data AnfRhs = Lam VariableName Type AnfRhs
+                        | Complex AnfComplex
+            \end{haskellfigure}
+
+            An ILA program is lowered from a list of \haskell{Binding Expr} to a list of \haskell{Binding AnfRhs} by
+            this pass. The translation is quite simple compared to the other lowering passes -- most of the terms are
+            similar to those in ILA (including carrying type information), with notable exceptions being the
+            introduction of \haskell{AnfApplication}, which restricts application arguments to purely trivial terms, and
+            \haskell{AnfRhs}, to enforce that lambda terms can only be bound to variables.
+
+        }
+        \subsubsection*{Intermediate Language B}
+        {
 
         }
     }

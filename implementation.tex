@@ -585,7 +585,7 @@ descriptions below.
         }
 
 
-        \subsubsection*{Deoverloader}
+        \subsubsection{Deoverloader}
         {
 
             The deoverloading stage performs a translation which eliminates typeclasses, resulting in an AST tagged with
@@ -668,7 +668,7 @@ descriptions below.
 
         \todo[inline]{For each: why needed, BNF grammar, strengths. Probably don't go into details of translation?}
 
-        \subsubsection*{Intermediate Language A}
+        \subsubsection{Intermediate Language A}
         {
 
             ILA is a subset of GHC's Core intermediate language, removing terms which are used for advanced language
@@ -704,6 +704,8 @@ descriptions below.
 
             A Haskell program is lowered by this pass into a list of \haskell{Binding Expr}: a list of recursive or
             non-recursive bindings of expressions to variables.
+
+            \todo[inline]{Use paragraph to split this into better titled chunks}
 
             One notable feature of ILA is that it carries type information: leaf nodes such as \monospace{Var} are
             tagged with a type. GHC's Core IL is fully explicitly typed under a variant of System F, which allows for
@@ -745,6 +747,7 @@ descriptions below.
             \haskell{if x then y else z} expressions into \haskell{case x of { True -> y ; False -> z }}
             (\haskell{Bool}is just defined as an ADT in Haskell, there's no special language support for it).
 
+            \todo[inline]{Case statements on literals are converted into equality checks, as they don't fit the normal approaches. However, this is only implemented in the pattern match code, not the general case statement code...}
             
             % Begin pattern matching spiel
             Other language features are non-trivial to lower, such as the rich syntax Haskell uses for pattern matching.
@@ -768,12 +771,12 @@ descriptions below.
             definitions. The current implementation is now based off the approach given in Chapter 5 of
             \cite{ImplFunLang}, which is a more general version of my initial algorithm.
 
-            \todo[inline]{Feel like this needs a little bit more}
+            \todo[inline]{Feel like this needs a little bit more. Probably give a very brief overview, explain that everything's converted into case statements in the end, etc.}
 
             % End pattern matching spiel
 
         }
-        \subsubsection*{Intermediate Language A - Administrative Normal Form}
+        \subsubsection{Intermediate Language A - Administrative Normal Form}
         {
 
             Administrative Normal Form (ANF) is a style of writing programs in which all arguments to functions must be
@@ -821,7 +824,7 @@ descriptions below.
             \haskell{AnfRhs}, to enforce that lambda terms can only be bound to variables.
 
         }
-        \subsubsection*{Intermediate Language B}
+        \subsubsection{Intermediate Language B}
         {
 
             ILB is the final intermediate language of this compiler and is inspired by GHC's STG (Spineless Tagless
@@ -906,7 +909,7 @@ descriptions below.
 
         }
     }
-    \subsubsection{Code Generation}
+    \subsection{Code Generation}
     {
         \todo[inline]{Left optimisations until after codegen: cover the main pipeline first then the optional stages later?}
         
@@ -939,7 +942,7 @@ descriptions below.
         % - Literal implementations. int, BigInteger, char, string is a list of chars.
         % - Hooks: implementing a haskell value with java code.
 
-        \paragraph*{Weak Head Normal Form}
+        \subsubsection{Weak Head Normal Form}
         {
 
             A Haskell expression is in weak head normal form (WHNF) if it is either a partially applied function
@@ -965,12 +968,12 @@ descriptions below.
             (1 + 2) + 3     -- Not in WHNF
             \end{haskellfigure}
         }
-        \paragraph*{Heap Objects}
+        \subsubsection{Heap Objects}
         {
 
-            Datatype values, literals, and functions are all represented at runtime by values on the heap, and will be
+            Literals, datatype values and functions are all represented at runtime by values on the heap, and will be
             referred to as `objects': this intentionally overloads the terminology used by Java for an instance of a
-            class, as the two concepts are essentially interchangeable here.
+            class, as the two concepts are essentially interchangeable here as Java objects are heap-allocated.
 
             All objects on the heap inherit from a common abstract base class, \java{HeapObject}:
 
@@ -985,69 +988,115 @@ descriptions below.
             }
             \end{javafigure}
 
-            The abstract \java{enter} method evaluates the object to WHNF and returns a reference to the result,
-            and the \java{clone} method simply returns a shallow copy of the object. This method is critically for
-            implementing function applications, described later.
+            The abstract \java{enter} method evaluates the object to WHNF and returns a reference to the result, and the
+            \java{clone} method simply returns a shallow copy of the object. This method is critically for implementing
+            function applications, described later.
 
-            \textbf{Literals} are builtin types that can't be defined as an Haskell ADT, such as \haskell{Int}. Any such
-            type is a subclass of the \java{Data} class, which is itself a subclass of the \java{HeapObject} class that
-            a rather boring implementation of the abstract \java{enter} method. Any literal is already in WHNF, so
-            evaluation to WHNF is trivial:
+            \paragraph*{Literals}
+            {
+                
+                Literals are builtin types that can't be defined as an Haskell ADT, such as \haskell{Int}. Any such type
+                is a subclass of the \java{Data} class, which is itself a subclass of the \java{HeapObject} class that a
+                rather boring implementation of the abstract \java{enter} method. Any literal is already in WHNF, so
+                evaluation to WHNF is trivial:
 
-            \begin{javafigure}
-            public abstract class Data extends HeapObject {
-                @Override
-                public HeapObject enter() {
-                    return this;
+                \begin{javafigure}
+                public abstract class Data extends HeapObject {
+                    @Override
+                    public HeapObject enter() {
+                        return this;
+                    }
                 }
+                \end{javafigure}
+
+                Here is an example literal implementation for \haskell{Integer}, Haskell's arbitrary precision integral
+                value type. It is implemented using Java's \java{BigInteger} class to perform all the computation. The
+                copious uses of underscores is explained in the JVM Sanitisation section below.
+
+                \begin{javafigure}
+                import java.math.BigInteger;
+
+                public class _Integer extends Data {
+                    public BigInteger value;
+                    public static _Integer _make_Integer(BigInteger x) {
+                        _Integer i = new _Integer();
+                        i.value = x;
+                        return i;
+                    }
+                    public static _Integer _make_Integer(String x) {
+                        return _make_Integer(new BigInteger(x));
+                    }
+
+                    public static _Integer add(_Integer x, _Integer y) {
+                        return _make_Integer(x.value.add(y.value));
+                    }
+                    public static _Integer sub(_Integer x, _Integer y) { ... }
+                    public static _Integer mult(_Integer x, _Integer y) { ... }
+                    public static _Integer div(_Integer x, _Integer y) { ... }
+                    public static _Integer negate(_Integer x) { ... }
+
+                    public static boolean eq(_Integer x, _Integer y) { ... }
+
+                    public static String show(_Integer x) { ... }
+                }
+                \end{javafigure}
+
+                The \java{_make_Integer(String)} function allows a Java \java{_Integer} object to be constructed from a
+                Java string representation, which is used by the compiler to construct \haskell{Integer} values:
+
+                \todo[inline]{Brief two-line bytecode demonstrating this}
+
+                The \java{add}, \java{sub}, etc. methods are Java implementations of the functions required by Haskell's
+                \haskell{Num}, \haskell{Eq} and \haskell{Show} typeclass instances for \haskell{Integer}. The section on
+                Hooks covers this aspect of code generation in more detail.
+
             }
-            \end{javafigure}
+            \paragraph*{Datatypes}
+            {
+                
+                An Haskell ADT can be represented simply by a class generated by the compiler which inherits from the
+                \java{BoxedData} builtin abstract class:
 
-            Here is an example literal implementation for \haskell{Integer}, Haskell's arbitrary precision integral
-            value type. It is implemented using Java's \java{BigInteger} class to perform all the computation. The
-            copious uses of underscores is explained in the JVM Sanitisation section below.
-
-            \begin{javafigure}
-            import java.math.BigInteger;
-
-            public class _Integer extends Data {
-                public BigInteger value;
-                public static _Integer _make_Integer(BigInteger x) {
-                    _Integer i = new _Integer();
-                    i.value = x;
-                    return i;
+                \begin{javafigure}
+                public abstract class BoxedData extends Data {
+                    public int branch;
+                    public HeapObject[] data;
                 }
-                public static _Integer _make_Integer(String x) {
-                    return _make_Integer(new BigInteger(x));
+                \end{javafigure}
+
+                The \java{branch} field is used to identify which constructor of the type has been used, and the
+                \java{data} field contains any arguments given to the constructor. An example generated
+                class\footnote{The compiler doesn't generate a class described in Java source as shown, it just
+                generates the bytecode for the class directly.} for the datatype \haskell{data Maybe a = Nothing | Just
+                a} might be:
+
+                \begin{javafigure}
+                public class _Maybe extends BoxedData {
+                    public _make_Nothing() {
+                        _Maybe x = new _Maybe();
+                        x.branch = 0;
+                        x.data = new HeapObject[] {};
+                        return x;
+                    }
+                    public _make_Just(HeapObject val) {
+                        _Maybe x = new _Maybe();
+                        x.branch = 1;
+                        x.data = new HeapObject[] { val };
+                        return x;
+                    }
                 }
+                \end{javafigure}
 
-                public static _Integer add(_Integer x, _Integer y) {
-                    return _make_Integer(x.value.add(y.value));
-                }
-                public static _Integer sub(_Integer x, _Integer y) { ... }
-                public static _Integer mult(_Integer x, _Integer y) { ... }
-                public static _Integer div(_Integer x, _Integer y) { ... }
-                public static _Integer negate(_Integer x) { ... }
+                Note that as \java{BoxedData} inherits from \java{Data}, the \java{enter} method has the same simple
+                implementation -- any data value is already in WHNF.
 
-                public static boolean eq(_Integer x, _Integer y) { ... }
-
-                public static String show(_Integer x) { ... }
             }
-            \end{javafigure}
+            \paragraph*{Functions}
+            {
 
-            The \java{_make_Integer(String)} function allows a Java \java{_Integer} object to be constructed from a
-            Java string representation, which is used by the compiler to construct \haskell{Integer} values:
-
-            \todo[inline]{Brief two-line bytecode demonstrating this}
-
-            The \java{add}, \java{sub}, etc. methods are Java implementations of the functions required by Haskell's
-            \haskell{Num}, \haskell{Eq} and \haskell{Show} typeclass instances for \haskell{Integer}. The section on
-            Hooks covers this aspect of code generation in more detail.
-
-
-
+            }
         }
-        \paragraph*{JVM Sanitisation}
+        \subsubsection{JVM Sanitisation}
         {
 
             Haskell allows variable names that aren't valid Java or JVM identifiers.

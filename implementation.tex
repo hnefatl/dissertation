@@ -674,7 +674,7 @@ descriptions below.
             ILA is a subset of GHC's Core intermediate language, removing terms which are used for advanced language
             features like GADTs, as they are not supported by this compiler. Haskell 98 has hundreds of node types in
             its
-            AST\footnote{\url{https://hackage.haskell.org/package/haskell-src-1.0.3.0/docs/Language-Haskell-Syntax.html}\todo[inline]{Find
+            AST\footnote{\url{https://hackage.haskell.org/package/haskell-src/docs/Language-Haskell-Syntax.html}\todo[inline]{Find
             version-independent link}}, whereas ILA has far fewer: this makes it far easier to transform. Below is the
             full definition of ILA:
 
@@ -824,7 +824,94 @@ descriptions below.
         \subsubsection*{Intermediate Language B}
         {
 
+            ILB is the final intermediate language of this compiler and is inspired by GHC's STG (Spineless Tagless
+            G-Machine) IL. ILB maintains the ANF style from ILA-ANF. It has a number of extremely useful features for
+            code generation: the only term that performs any evaluation of an expression is the \haskell{ExpCase #\(e\
+            t\ vs\ as\)#} term (which evaluates \(e\) then branches to one of the \(as\)), and the only term which
+            performs any memory allocation is the \haskell{ExpLit #\(v\ r\ e\)#} term, which allocates memory on the
+            heap to represent a datatype/literal/uneveluated expression then evaluates \(e\).
+
+            Additionally, this language makes lazy evaluation `explicit', in the sense that expressions to be evaluated
+            are always encapsulated within an \haskell{RhsClosure} (thanks to ANF style which names each subexpression)
+            that can be implemented as a not-yet-evaluated thunk.
+
+            \begin{haskellfigure}
+            data Arg = ArgLit Literal
+                     | ArgVar VariableName
+
+            data Exp = ExpLit Literal
+                     | ExpVar VariableName
+                     | ExpApp VariableName [Arg]
+                     | ExpConApp VariableName [Arg]
+                     | ExpCase Exp Type [VariableName] [Alt Exp]
+                     | ExpLet VariableName Rhs Exp
+
+            data Rhs = RhsClosure [VariableName] Exp
+            \end{haskellfigure}
+
+            ILB is similar in grammar to ILA-ANF, and the translation pass is relatively simple. There are some key
+            differences between the languages, that reflect the changes from a relatively high-level IL down to a
+            lower-level one:
+
+            \todo[inline]{Didn't use bullet points for the previous IL explanations: change them?}
+            \begin{itemize}
+            \item
+            {
+
+                There are now two terms for applications, one for functions (\haskell{ExpApp}) and one for data
+                constructors (\haskell{ExpConApp}). The distinction is necessary for code generation, when a function
+                application results in a jump to new executable code while a constructor application creates a new heap
+                object.
+
+                \haskell{ExpConApp} also requires all its arguments to be present: it cannot be a partial application.
+                Haskell treats datatype constructors as functions, so the following is a valid program:
+
+                \begin{haskellfigure}
+                data Pair a b = Pair a b
+                x = Pair 1
+                y = x 2
+                \end{haskellfigure}
+
+                At the implementation level however, functions and data constructors are necessarily very different, so
+                distinguishing them within this IL makes code generation easier.
+
+                \todo[inline]{Include how they're distinguished? Or too much detail?}
+
+            }
+            \item
+            {
+
+                Right-hand-side terms in ILA (\haskell{AnfRhs}) were either lambda expressions or a let-binding/case
+                expression/\dots -- in ILB, the only right-hand-side term is a \haskell{RhsClosure}. A closure with no
+                arguments is essentially a thunk, a term that exists purely to delay computation of an expression, while
+                a closure with arguments is the familiar lambda term.
+
+                ILB's \haskell{RhsClosure} takes a list of arguments, whereas ILA-ANF's lambda terms only take a single
+                argument (multiple-argument functions are just nested single-argument lambdas). This is another
+                translation aimed at making code generation easier. Single-argument lambdas allow for simpler logic when
+                handling partial application in higher-level languages, but is inefficient in implementation. ILB is the
+                ideal IL to perform this switch from the high-level convenient-to-modify grammar to a lower-level
+                efficient representation.
+
+            }
+            \item
+            {
+
+                ILB only allows variables in many of the places where ILA-ANF allowed variables, literals, or 0-arity
+                data constructors (like \haskell{True}). This is another step towards making laziness explicit, by
+                keeping expressions simple so that only one step of the evaluation needs to happen at a time.
+
+            }
+            \end{itemize}
+
         }
+    }
+    \subsubsection*{Code Generation}
+    {
+        \todo[inline]{Left optimisations for after codegen: cover the main pipeline first then the optional stages later?}
+        
+            
+
     }
 }
 

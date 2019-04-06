@@ -15,6 +15,7 @@
 \usepackage{caption}
 \usepackage{pdfpages}
 \usepackage{subfiles}
+\usepackage{titlesec}
 
 \raggedbottom % try to avoid widows and orphans
 \sloppy
@@ -26,9 +27,19 @@
 {\normalfont\huge\bfseries}{\chaptertitlename\ \thechapter}{20pt}{\Huge}
 \titlespacing*{\chapter}{0pt}{-20pt}{40pt}
 
-\newmintinline[haskell]{haskell}{escapeinside=\#\#, mathescape}
+% Allow paragraphs to be numbered
+\setcounter{secnumdepth}{4}
+\titleformat{\paragraph}
+{\normalfont\normalsize\bfseries}{\theparagraph}{1em}{}
+\titlespacing*{\paragraph}
+{0pt}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
+
 \newmintinline[monospace]{text}{escapeinside=\#\#, mathescape}
+\newmintinline[haskell]{haskell}{escapeinside=\#\#, mathescape}
+\newmintinline[java]{java}{escapeinside=\#\#, mathescape}
+\newminted[monospacefigure]{text}{linenos, frame=lines, framesep=2mm, autogobble, escapeinside=\#\#, mathescape}
 \newminted[haskellfigure]{haskell}{linenos, frame=lines, framesep=2mm, autogobble, escapeinside=\#\#, mathescape}
+\newminted[javafigure]{java}{linenos, frame=lines, framesep=2mm, autogobble, escapeinside=\#\#, mathescape}
 
 \renewcommand{\baselinestretch}{1.1} % adjust line spacing to make more readable
 

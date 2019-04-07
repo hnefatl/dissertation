@@ -1317,9 +1317,47 @@ descriptions below.
         \subsubsection{JVM Sanitisation}
         {
 
-            Haskell allows variable names that aren't valid Java or JVM identifiers.
+            Haskell\footnote{\url{https://www.haskell.org/onlinereport/lexemes.html}},
+            Java\footnote{\url{https://docs.oracle.com/javase/specs/jls/se8/html/jls-3.html\#jls-3.8}}, and
+            JVB\footnote{\url{https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-4.html\#jvms-4.2.2}} all allow
+            different sets of strings as valid identifiers: for example, in Java and JVB \java{Temp} is a valid variable
+            name, but in Haskell it's not (identifiers with uppercase Unicode start characters are reserved for
+            constructor names like \monospace{True}). \monospace{+} is a valid identifier in Haskell and JVB, but not in
+            Java.
 
-            \todo[inline]{Quote the spec for the valid idents?}
+            Additionally name conflicts can occur between builtin classes used by the compiler (eg.\ \java{Function} and
+            \java{Data}) and constructor names in the Haskell source (eg.\ \haskell{data Function = Function}).
+
+            JVM Sanitisation is a name conversion process used in the code generator to prevent conflicts and invalid
+            variable names when everything's been lowered into JVB:
+
+            \begin{itemize}
+            \item
+            {
+
+                All names that have come from Haskell source are prefixed with an underscore, and any builtin classes
+                are forbidden from starting with an underscore. This prevents name clashes.
+
+            }
+            \item
+            {
+
+                Any non-alphanumeric (Unicode) characters in a Haskell source identifier are replaced by their Unicode
+                codepoint in hexadecimal, flanked on either side by \$ symbols. This is more restrictive than necessary,
+                as JVB allows most unicode characters, but is a safe and simple defence against conflicts. Using \$
+                symbols to mark the start and end of a sanitised character ensures that identifiers are uniquely
+                decodable and prevents two distinct identifiers from clashing when sanitised (without delimiters, the
+                valid Haskell identifiers \haskell{#\(\pi\)#} and \haskell{CF80} are sanitised into the same identifier:
+                \monospace{_CF80}. With the delimiters, \haskell{#\(\pi\)#} is sanitised into \monospace{_$CF80$}).
+
+            }
+            \end{itemize}
+
+        }
+        \subsubsection{Variable Length Instructions}
+        {
+
+
 
         }
     }

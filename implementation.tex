@@ -984,6 +984,9 @@ descriptions below.
             terminology used by Java for an instance of a class, as the two concepts are essentially interchangeable
             here as Java objects are heap-allocated.
 
+            Thunks are represented simply as closures without arguments: all of the closure logic described below is the
+            same between thunks and functions.
+
             All objects on the heap inherit from a common abstract base class, \java{HeapObject}:
 
             \begin{javafigure}
@@ -1295,6 +1298,20 @@ descriptions below.
                 }
                 \end{enumerate}
 
+                All of the functions defined in a Haskell program are compiled into their pairs of Java functions within
+                a single class, the `main' class. Datatypes are compiled into their own classes which are then
+                referenced by the main class. This approach to function compilation differs from the approaches taken by
+                Scala and Kotlin (other languages targeting the JVM), which compile lambda expressions into anonymous
+                classes.
+
+                In Haskell, the vast majority of expressions are function applications by the time the source has
+                reached ILB. To provide lazy semantics, each expression has to be evaluatable without forcing other
+                expressions, so each function implementation is quite small. This results in a lot of functions being
+                generated. Using anonymous classes to implement Haskell functions would result in hundreds or thousands
+                of small Java classes, whereas using Java functions results in far fewer classes and more functions
+                inside a single class.
+
+                \todo[inline]{This is meant to be a reflective design discussion: say something about it being interesting to compare tradeoffs in performance and size? Also cost of class loading?}
             }
         }
         \subsubsection{JVM Sanitisation}

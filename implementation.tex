@@ -979,9 +979,10 @@ descriptions below.
         \subsubsection{Heap Objects}
         {
 
-            Literals, datatype values and functions are all represented at runtime by values on the heap, and will be
-            referred to as `objects': this intentionally overloads the terminology used by Java for an instance of a
-            class, as the two concepts are essentially interchangeable here as Java objects are heap-allocated.
+            Literals, datatype values and closures are all represented at runtime by values on the heap, as they are all
+            first-class values in Haskell, and will be referred to as `objects': this intentionally overloads the
+            terminology used by Java for an instance of a class, as the two concepts are essentially interchangeable
+            here as Java objects are heap-allocated.
 
             All objects on the heap inherit from a common abstract base class, \java{HeapObject}:
 
@@ -1096,11 +1097,203 @@ descriptions below.
                 \end{javafigure}
 
                 Note that as \java{BoxedData} inherits from \java{Data}, the \java{enter} method has the same simple
-                implementation -- any data value is already in WHNF.
+                implementation -- as any data value is already in WHNF.
 
             }
-            \paragraph*{Functions}
+            \paragraph*{Closures}
             {
+
+                Closures are the most complicated objects stored on the heap. There are three main lifecycle stages of a
+                closure:
+
+                \begin{itemize}
+                \item
+                {
+                    Creation: construction of a new closure representing a function of a given arity, without any
+                    arguments having been applied yet but possibly including values of free variables in scope of the
+                    closure.
+                }
+                \item
+                {
+                    
+                    Argument application: this may be a partial application or a total application, or even an
+                    over-application: consider \haskell{id (+1) 5}, which evaluates to \haskell{6}. \haskell{id} has
+                    arity 1, but is applied to 2 arguments here.
+
+                }
+                \item
+                {
+                    Evaluation: after a total application, reducing the function to its body (as specified by WHNF
+                    reduction).
+                }
+                \end{itemize}
+
+                These behaviours are provided by the \java{Function} builtin class:
+
+                \todo[inline]{Formatting + it's quite a lot of code, but I think necessary to understand the details below.}
+                \begin{javafigure}
+                import java.util.ArrayList;
+                import java.util.function.BiFunction;
+                                
+                public class Function extends HeapObject {
+                    private BiFunction<HeapObject[], HeapObject[], HeapObject> inner;
+                    private HeapObject[] freeVariables;
+                    private ArrayList<HeapObject> arguments;
+                    private int arity = 0;
+                                
+                    public Function(BiFunction<HeapObject[], HeapObject[], HeapObject> inner,
+                                    int arity, HeapObject[] freeVariables) {
+                        this.inner = inner;
+                        this.arity = arity;
+                        this.freeVariables = freeVariables;
+                        arguments = new ArrayList<>();
+                    }
+                                
+                    @Override
+                    public HeapObject enter() {
+                        if (arguments.size() < arity) { // Partial application
+                            return this;
+                        }
+                        else if (arguments.size() > arity) { // Over-applied
+                            try {
+                                Function result = (Function)inner
+                                    .apply(
+                                        arguments.subList(0, arity).toArray(new HeapObject[0]),
+                                        freeVariables)
+                                    .enter()
+                                    .clone();
+                                for (HeapObject arg : arguments.subList(arity, arguments.size()))
+                                    result.addArgument(arg);
+                                return result;
+                            }
+                            catch (CloneNotSupportedException e) {
+                                throw new RuntimeException(e);
+                            }
+                        }
+                        else { // Perfect application
+                            return inner.apply(
+                                arguments.toArray(new HeapObject[0]), freeVariables
+                            ).enter();
+                        }
+                    }
+                                
+                    public void addArgument(HeapObject arg) {
+                        arguments.add(arg);
+                    }
+                                
+                    @Override
+                    public Object clone() throws CloneNotSupportedException {
+                        Function f = (Function)super.clone();
+                        f.inner = inner;
+                        f.arity = arity;
+                        f.freeVariables = freeVariables.clone();
+                        f.arguments = new ArrayList<>(arguments);
+                        return f;
+                    }
+                }
+                \end{javafigure}
+
+                A function \(f\) (either defined locally or at the top-level) in Haskell of arity \(n_a\) and using
+                \(n_{fv}\) free variables is translated into two Java functions:
+                
+                \begin{itemize}
+                \item
+                {
+                    
+                    \java{_#\(f\)#Impl}, which takes two arrays of \java{HeapObject}s as arguments, one holding the
+                    arguments for the Haskell function (of length \(n_a\)) and one holding the free variables used by
+                    the Haskell function (of length \(n_{fv}\)), and returns a \java{HeapObject} representing the result
+                    of applying the function.
+
+                }
+                \item
+                {
+
+                    \java{_make_#\(f\)#}, which takes \(n_{fv}\) arguments representing the free variables of the
+                    Haskell function, and returns a Java \java{Function} object representing the closure, where the
+                    \java{inner} field points to the \java{_#\(f\)#Impl} function.
+
+                }
+                \end{itemize}
+                
+                \java{Function}'s \java{freeVariables} field has type \java{HeapObject[]} as we know at initialisation
+                time exactly how many free variables the function has, and it doesn't change. The \java{arguments} field
+                is an \java{ArrayList<HeapObject>} so that we can handle partial applications and over-applications by
+                only adding arguments when they're applied.
+
+                Haskell function applications are lowered into bytecode that:
+                \begin{enumerate}
+                \item
+                {
+
+                    Fetches the function, either by calling the appropriate \java{_make_} function with the free
+                    variables, or just loading a local variable if the function has already been partially applied and
+                    stored or passed as a function argument.
+
+                }
+                \item
+                {
+
+                    \textbf{Clones} the \java{Function} object. This step is subtle but vital, as each argument applied
+                    to the function mutates the \java{Function} object by storing additional arguments.
+                    
+                    If we're using a local closure like \haskell{let add1 = (+) 1 in add1 2 * add1 3} then
+                    \haskell{add1} will be a local \java{Function} object with \java{inner} pointing to the
+                    implementation of \haskell{(+)} and one applied argument (a \java{Data} instance representing 1).
+                    Both \haskell{add1 2} and \haskell{add1 3} will mutate the object to add the argument being applied
+                    (see the next step for details), which leads to the \java{Function} object after \haskell{add1 3}
+                    having 3 stored arguments.
+
+                    Cloning the function essentially maintains the same references to arguments and free variables, but
+                    creates new (non-shared) containers to hold them, avoiding the above issue.
+                    
+                    This is a shallow clone -- if we used a deep clone, recursively cloning the arguments and free
+                    variables, then we'd lose the performance benefit of graph reduction where we can use an already
+                    computed value instead of recomputing it ourselves, and increase memory usage.
+
+                }
+                \item
+                {
+
+                    Invokes \java{addArgument} on the cloned object for each argument in the application, storing them
+                    later use.
+
+                }
+                \item
+                {
+
+                    Invokes \java{enter} on the function object. This will reduce the object to WHNF, which has three
+                    cases:
+                    
+                    \begin{itemize}
+                    \item
+                    {
+
+                        The function is partially applied, so hasn't yet received all of the necessary arguments to be
+                        evaluated. Such a function is already in WHNF, so we can just return it.
+
+                    }
+                    \item
+                    {
+
+                        The function has exactly the right number of arguments, so WHNF demands we reduce it. This is
+                        implemented by calling the \java{inner} function that performs the actual implementation of the
+                        Haskell function with the free variables and arguments we've stored, then ensuring the result
+                        has been evaluated to WHNF by calling \java{enter}, then returning it.
+
+                    }
+                    \item
+                    {
+
+                        The function is over-applied. This case looks complicated, it's two simple steps. We pretend we
+                        have an application of exactly the right number of arguments as in the above case, then instead
+                        of returning the result we cast it to a \java{Function} object and perform a normal function
+                        application with all the leftover arguments.
+
+                    }
+                    \end{itemize}
+                }
+                \end{enumerate}
 
             }
         }

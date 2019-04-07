@@ -695,7 +695,6 @@ descriptions below.
             data Alt a = Alt AltConstructor a
 
             data AltConstructor = DataCon VariableName [VariableName]
-                                | LitCon Literal
                                 | Default
 
             data Binding a = NonRec VariableName a
@@ -738,17 +737,15 @@ descriptions below.
             
             The alts in a \monospace{Case} expression, of the form \monospace{Alt #\(c\ b\)#}, match the value of
             evaluating the scrutinee against the data constructor \(c\), then evaluates the \(b\) from whichever alt
-            matched. \monospace{AltConstructor} represents the potential matches: either literal values, a data
-            constructor with a number of variables to be bound, or a `match-anything' default value.
+            matched. \monospace{AltConstructor} represents the potential matches: either a data constructor with a
+            number of variables to be bound, or a `match-anything' default value.
 
 
             Many syntax features in Haskell are just syntactic sugar, and are simple to desugar (list literals like
-            \haskell{[1, 2]} are desugared to \haskell{1:2:[]}). Others are more involved, such as converting
+            \haskell{[1, 2]} are desugared to \haskell{1:2:[]}). Others are slightly more involved, such as converting
             \haskell{if x then y else z} expressions into \haskell{case x of { True -> y ; False -> z }}
             (\haskell{Bool}is just defined as an ADT in Haskell, there's no special language support for it).
 
-            \todo[inline]{Case statements on literals are converted into equality checks, as they don't fit the normal approaches. However, this is only implemented in the pattern match code, not the general case statement code...}
-            
             % Begin pattern matching spiel
             Other language features are non-trivial to lower, such as the rich syntax Haskell uses for pattern matching.
             An example pattern match could be \haskell{Just x@(y:z) = Just [1, 2]}, binding \haskell{x = [1, 2]},
@@ -773,6 +770,17 @@ descriptions below.
 
             \todo[inline]{Feel like this needs a little bit more. Probably give a very brief overview, explain that everything's converted into case statements in the end, etc.}
 
+            Finally, note that in Haskell a pattern will eventually match against a data constructor, a literal, or
+            anything (with the wildcard pattern \haskell{_}). However, in the grammar for ILA's
+            \haskell{AltConstructor}, there's no constructor corresponding to literals. This is due to \haskell{case}
+            expressions generally only making sense for data constructors, where there are a finite number of
+            constructors to check a value against for a given datatype. On the other hand, literals normally have a
+            cumbersomely large (or infinite) number of `constructors' (one can imagine the \haskell{Int} type, which is
+            bounded, as being defined as \haskell{data Int = ... | -1 | 0 | 1 | ... }, but \haskell{Integer} cannot be
+            defined in this way as it is unbounded). As a result, literals are `pattern matched' by using equality
+            checks from the \haskell{Eq} typeclass: the expression \haskell{case x of { 0 -> y ; 1 -> z ; _ -> w }} is
+            essentially translated to \haskell{if x == 0 then y else if x == 1 then z else w}, which is then lowered
+            into \haskell{case} expressions match on \haskell{True} and \haskell{False} as described above.
             % End pattern matching spiel
 
         }

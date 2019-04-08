@@ -1357,13 +1357,15 @@ descriptions below.
         \subsubsection{Notable Instructions}
         {
 
-            JVB uses variable-length instructions, and also instructions where the length varies depending on their
-            position in a function. The \monospace{nop} (no-op) instruction is a single byte, whereas the
+            JVB uses variable-length instructions, and also instructions where the length varies between usages (not the
+            same length each time). The \monospace{nop} (no-op) instruction is a single byte, whereas the
             \monospace{goto} instruction is 3 bytes (the opcode followed by a two-byte operand forming the address to
             jump to).
             
-            However, there are more complex instructions: the \monospace{lookupswitch} instruction has the following
-            layout:
+            The \monospace{lookupswitch} instruction is a low-level implementation of a \java{switch} statement in Java:
+            it compares an \java{int} on the top of the stack with a set of values, jumping to an address paired with
+            each value or to a default address if no values match. The interesting part of this instruction is that the
+            length varies between usages:
 
             \tikzstyle{box}=[rectangle, draw=black, text centered]
             \tikzstyle{arrow}=[below, pos=0.5]

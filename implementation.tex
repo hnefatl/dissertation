@@ -147,6 +147,10 @@ descriptions below.
     }
     \subsection{Preprocessor}
     {
+
+        The preprocessing passes either make the Haskell source easier to deal with by later passes, or extract useful
+        information to prevent subsequent passes from needing to extract information while applying transformations.
+
         \subsubsection{Renaming}
         {
 
@@ -380,7 +384,6 @@ descriptions below.
             }
             \end{itemize}
         }
-
     }
     \subsection{Type Checker}
     {
@@ -583,8 +586,6 @@ descriptions below.
 
             % Need to add typeclasses to all the above
         }
-
-
         \subsubsection{Deoverloader}
         {
 

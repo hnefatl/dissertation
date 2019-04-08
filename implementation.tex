@@ -936,18 +936,6 @@ descriptions below.
         these `builtin' classes and uses a set of `hooks' when generating code to provide Java implementations of
         Haskell functions. This is covered in more detail later.
 
-        % - WHNF
-        % - Thunks are functions
-        % - Functions are objects holding lambdas, to avoid needing a distinct anonymous class for each closure (as done
-        %   by Scala etc?) https://stackoverflow.com/a/11658895/2193020. Requires bootstrap methods, adds complexity to
-        %   the code generator. Scala is strict, Haskell is lazy so essentially every expression is a closure, number of
-        %   classes would be massive. Details on how a function contains argument list and free variable list, to allow
-        %   for partial application. Details of cloning before applying, to prevent partial applications from bleeding
-        %   out.
-        % - JVM instructions are variable length (lookupswitch padding)
-        % - JVMSanitise
-        % - Datatype implementation, tag/data fields.
-        % - Literal implementations. int, BigInteger, char, string is a list of chars.
         % - Hooks: implementing a haskell value with java code.
 
         \subsubsection{Weak Head Normal Form}
@@ -1357,51 +1345,119 @@ descriptions below.
         \subsubsection{Notable Instructions}
         {
 
-            JVB uses variable-length instructions, and also instructions where the length varies between usages (not the
-            same length each time). The \monospace{nop} (no-op) instruction is a single byte, whereas the
-            \monospace{goto} instruction is 3 bytes (the opcode followed by a two-byte operand forming the address to
-            jump to).
+            As mentioned earlier, the \monospace{hs-java} library is used to generate Java \monospace{.class} files from
+            an in-memory representation of JVB, but support for a number of instructions were added to it: this section
+            describes some of the more interesting ones that are heavily used by the compiler.
             
-            The \monospace{lookupswitch} instruction is a low-level implementation of a \java{switch} statement in Java:
-            it compares an \java{int} on the top of the stack with a set of values, jumping to an address paired with
-            each value or to a default address if no values match. The interesting part of this instruction is that the
-            length varies between usages:
+            \paragraph*{\monospace{lookupswitch}}
+            {
+                
+                The \monospace{lookupswitch} instruction is a low-level implementation of a \java{switch} statement in
+                Java: it compares an \java{int} on the top of the stack (`scrutinee') with a set of values, jumping to
+                an address paired with each value or to a default address if no values match. The interesting part of
+                this instruction is that the length varies between usages:
 
-            \tikzstyle{box}=[rectangle, draw=black, text centered]
-            \tikzstyle{arrow}=[below, pos=0.5]
+                \tikzstyle{box}=[rectangle, draw=black, text centered]
+                \tikzstyle{arrow}=[below, pos=0.5]
 
-            \noindent
-            \begin{tikzpicture}
-            \small
+                \begin{figure}[h]
+                    \begin{tikzpicture}
+                    \small
 
-            \node at (0.5  ,0) [box, minimum width=2cm, minimum height=1cm, rotate=90]{Opcode};
-            \draw[>=latex,<->] (0,-1.25) -- (1,-1.25) node[arrow] {1 byte};
+                    \node at (0.5  ,0) [box, minimum width=2cm, minimum height=1cm, rotate=90]{Opcode};
+                    \draw[>=latex,<->] (0,-1.25) -- (1,-1.25) node[arrow] {1 byte};
 
-            \node at (2.25 ,0) [box, minimum width=2.5cm, minimum height=2cm]
-                {\begin{tabular}{cc}Padding\\\(0 \leq p \leq 3\)\end{tabular}};
-            \draw[>=latex,<->] (1,-1.25) -- (3.5,-1.25) node[arrow] {\(p\) bytes};
+                    \node at (2.25 ,0) [box, minimum width=2.5cm, minimum height=2cm]
+                        {\begin{tabular}{cc}Padding\\\(0 \leq p \leq 3\)\end{tabular}};
+                    \draw[>=latex,<->] (1,-1.25) -- (3.5,-1.25) node[arrow] {\(p\) bytes};
 
-            \node at (4.75 ,0) [box, minimum width=2.5cm, minimum height=2cm]{Default offset};
-            \draw[>=latex,<->] (3.5,-1.25) -- (6,-1.25) node[arrow] {4 bytes};
+                    \node at (4.75 ,0) [box, minimum width=2.5cm, minimum height=2cm]{Default offset};
+                    \draw[>=latex,<->] (3.5,-1.25) -- (6,-1.25) node[arrow] {4 bytes};
 
-            \node at (7.25 ,0) [box, minimum width=2.5cm, minimum height=2cm]
-                {\begin{tabular}{cc}Num. cases\\\(0 \leq n \leq 2^{31}\)\end{tabular}};
-            \draw[>=latex,<->] (6,-1.25) -- (8.5,-1.25) node[arrow] {4 bytes};
+                    \node at (7.25 ,0) [box, minimum width=2.5cm, minimum height=2cm]
+                        {\begin{tabular}{cc}Num. cases\\\(0 \leq n \leq 2^{31}\)\end{tabular}};
+                    \draw[>=latex,<->] (6,-1.25) -- (8.5,-1.25) node[arrow] {4 bytes};
 
-            \node at (9.75 ,0) [box, minimum width=2.5cm, minimum height=2cm, dotted]{\(\text{Match}_1\)};
-            \draw[>=latex,<->] (8.5,-1.25) -- (11,-1.25) node[arrow] {4 bytes};
+                    \node at (9.75 ,0) [box, minimum width=2.5cm, minimum height=2cm, dotted]{\(\text{Match}_1\)};
+                    \draw[>=latex,<->] (8.5,-1.25) -- (11,-1.25) node[arrow] {4 bytes};
 
-            \node at (12.25,0) [box, minimum width=2.5cm, minimum height=2cm, dotted]{\(\text{Offset}_1\)};
-            \draw[>=latex,<->] (11,-1.25) -- (13.5,-1.25) node[arrow] {4 bytes};
+                    \node at (12.25,0) [box, minimum width=2.5cm, minimum height=2cm, dotted]{\(\text{Offset}_1\)};
+                    \draw[>=latex,<->] (11,-1.25) -- (13.5,-1.25) node[arrow] {4 bytes};
 
-            \node at (14.5 ,0) {\begin{tabular}{cc}\dots\\\(n-1\)\end{tabular}};
-            \draw [dotted] (15.5,1) -- (13.5,1) -- (13.5,-1) -- (15.5,-1);
-            \draw[>=latex,<-] (13.5,-1.25) -- (15.5,-1.25) node[arrow] {\(8(n-1)\) bytes};
-            \end{tikzpicture}
+                    \node at (14.5 ,0) {\begin{tabular}{cc}\dots\\\(n-1\)\end{tabular}};
+                    \draw [dotted] (15.5,1) -- (13.5,1) -- (13.5,-1) -- (15.5,-1);
+                    \draw[>=latex,<-] (13.5,-1.25) -- (15.5,-1.25) node[arrow] {\(8(n-1)\) bytes};
+                    \end{tikzpicture}
+                \end{figure}
 
+                \begin{itemize}
+                \item
+                {
+                    The first byte of the instruction is the opcode, \monospace{0xab}.
+                }
+                \item
+                {
 
+                    Up to 3 bytes of padding follow, such that the next byte (the first byte of the `Default offset'
+                    chunk) is an address that's a multiple of four bytes. JVM instruction addressing is local to a
+                    function, so the first instruction in a method has address 0.
 
-            % invokedynamic
+                }
+                \item
+                {
+
+                    The subsequent 4 bytes constitute a signed \java{int} that gives the offset to jump to if the
+                    scrutinee doesn't match any of the values given in the instruction.
+
+                    For this description, `offset' means `signed relative address difference from the address of the
+                    opcode of the instruction to the address of the target': if a \monospace{lookupswitch} instruction
+                    has opcode at address 10 and is 30 bytes long, the offset used to jump to the immediately subsequent
+                    instruction would be 30.
+
+                }
+                \item
+                {
+
+                    The following 4 bytes form another signed \java{int} that's restricted to non-negative values,
+                    representing the number of value-offset pairs to match the scrutinee against, \(n\).
+
+                }
+                \item
+                {
+
+                    Next come \(n\) pairs of 4-byte values, each describing an \java{int} value to match the scrutinee
+                    against and an offset to jump to if the values match.
+
+                }
+                \end{itemize}
+
+                JVB uses variable-length instructions: the \monospace{nop} (no-op) instruction is just an opcode
+                (\monospace{0x00}), a single byte, whereas the \monospace{goto} instruction is 3 bytes (the opcode,
+                \monospace{0xa7}, followed by a two-byte operand forming the address to jump to).
+
+                The \monospace{lookupswitch} instruction is especially interesting because the length changes between
+                uses of the same instruction: \(n\) and \(p\) effect the length of the instruction at runtime.
+            
+            }
+            \paragraph*{\monospace{invokedynamic}}
+            {
+                \todo[inline]{Left because the code generation section looks like it's getting way too long: can write later if needed}
+
+                \begin{itemize}
+                \item
+                {
+                    Basics of instruction, why needed (creation of \monospace{BiFunction} objects for
+                    \monospace{Function}).
+                }
+                \item Boostrap methods, class attributes
+                \end{itemize}
+            }
+        }
+        \subsubsection{Hooks}
+        {
+
+            
+
         }
     }
 }

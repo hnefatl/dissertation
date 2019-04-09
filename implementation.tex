@@ -539,120 +539,82 @@ descriptions below.
             }
             \end{enumerate}
 
-            %%%%%%%%%%%% Refactored up to here
-
-            One departure from the HM algorithm is that Haskell restricts polymorphism for some terms: let-bound
-            variables are polymorphic over all their free type variables, while function parameters are never
-            polymorphic. In practice, this means that in the code below, \haskell{f :: #\(\forall \alpha.\;\alpha
-            \rightarrow a\)#} whereas \haskell{g :: #\(\alpha \rightarrow \alpha\)#}. The difference in semantics
-            ensures that type inference remains decidable.
+            One departure from conventional polymorphic type systems is that Haskell's type system restricts
+            polymorphism for some terms: let-bound variables are polymorphic over all their free type variables, while
+            function parameters are never polymorphic. In practice, this means that in the code below, \haskell{f ::
+            #\(\forall \alpha.\;\alpha \rightarrow a\)#} whereas \haskell{g :: #\(\alpha \rightarrow \alpha\)#}. The
+            difference in semantics ensures that type inference remains decidable.
  
             \begin{haskellfigure}
             let f x = x in const (f True) (f 1) :: Bool -- This is fine
             (\\g -> const (g True) (g 1)) (\x -> x)     -- This fails to typecheck
             \end{haskellfigure}
-            
-            Another major difference from HM is the introduction of typeclasses: whenever we encounter an overloaded
-            variable such as \haskell{+}, we split the overloaded type into the constraints \(\{\text{Num }\alpha\}\)
-            and the simple type \(\alpha\rightarrow\alpha\rightarrow\alpha\). Unification can be performed as in HM on
-            the simple types, but we also maintain a global set of the constraints on type variables that we encounter.
-            After unification has completed, we use this set to add the typeclass constraints to the inferred types.
 
-            The final important difference from HM is in the instantiation of polymorphic types: the \([\texttt{Inst}]\)
-            rule in HM allows for terms with polymorphic types to be reused at call sites with different argument types,
-            but it needs a slight modification to handle type variable constraints introduced by overloaded types:
-            
-            \begin{figure*}[h]
-            \centering
-            \begin{subfigure}[t]{0.3\textwidth}
-            \begin{displaymath}
-            \prftree[r]{\([\text{Inst}]\)}
-            {\prfassumption{\Gamma\vdash e : \tau'}}
-            {\prfassumption{\tau' \sqsubseteq \tau}}
-            {\Gamma\vdash e : \tau}
-            \end{displaymath}
-            \caption*{The original rule from HM}
-            \end{subfigure}
-            ~
-            \begin{subfigure}[t]{0.6\textwidth}
-            \begin{displaymath}
-            \prftree[r]{\([\text{Inst}]\)}
-            {\prfassumption{\Gamma\stackrel{\Delta}{\vdash} e : C\Rightarrow\tau'}}
-            {\prfassumption{\tau' \sqsubseteq \tau}}
-            {\prfassumption{\theta = \text{mgu}(\tau, \tau')}}
-            {\Gamma\stackrel{\Delta\;\cup\;C\theta}{\vdash} e : C\theta\Rightarrow\tau}
-            \end{displaymath}
-            \caption*{A modified rule handling type classes. \(\Delta\) is the set of type variable constraints, built up throughout uses of the rules.}
-            \end{subfigure}
-            \end{figure*}
+            \todo[inline]{Originally I had a big worked example here, but after refactoring the above I don't know if it's needed: depends on whether reading the above makes sense or whether a continuous worked example would make it clearer.}
 
-            \todo[inline]{Bother explaining \(\sqsubseteq\) or just say it means `x is more general than y'? Not exactly going into detail here anyway}
-            \todo[inline]{Yeah this is kinda obscure...}
+            %Here is an example of how the type inference algorithm proceeds on a simple Haskell program:
+            %\todo[inline]{Want to distinguish as a different section from the above somehow}
 
-            Here is an example of how the type inference algorithm proceeds on a simple Haskell program:
-            \todo[inline]{Want to distinguish as a different section from the above somehow}
+            %\begin{haskellfigure}
+            %add1 x = x + 1
+            %y = add1 2
+            %\end{haskellfigure}
 
-            \begin{haskellfigure}
-            add1 x = x + 1
-            y = add1 2
-            \end{haskellfigure}
+            %As the definition of \haskell{y} depends on the definition of \haskell{add1} we process \haskell{add1}
+            %first, converting the infix operator into a prefix operator, and producing a type-variable-tagged AST:
 
-            As the definition of \haskell{y} depends on the definition of \haskell{add1} we process \haskell{add1}
-            first, converting the infix operator into a prefix operator, and producing a type-variable-tagged AST:
+            %\begin{haskellfigure}
+            %add1#\(^\alpha\)# x#\(^\beta\)# = (((+)#\(^{\gamma \rightarrow \gamma \rightarrow \gamma}\)#x#\(^\beta\)#)#\(^\delta\)# 1#\(^\epsilon\)#)#\(^\eta\)|
+            %\end{haskellfigure}
 
-            \begin{haskellfigure}
-            add1#\(^\alpha\)# x#\(^\beta\)# = (((+)#\(^{\gamma \rightarrow \gamma \rightarrow \gamma}\)#x#\(^\beta\)#)#\(^\delta\)# 1#\(^\epsilon\)#)#\(^\eta\)|
-            \end{haskellfigure}
+            %We know the type of \haskell{+} is \(\forall\omega.\;\text{Num }\omega \Rightarrow
+            %\omega\rightarrow\omega\rightarrow\omega\) from the definition of \haskell{+} within the typeclass
+            %\haskell{Num}, which would have been processed prior to this example. We instantiate this to fit this
+            %specific call site (remove the quantifier and replace the quantified type variables with fresh type
+            %variables) \(\text{Num }\gamma \Rightarrow \gamma\rightarrow\gamma\rightarrow\gamma\), then split the
+            %overloaded type into the type variable constraints (\(\{\text{Num }\gamma\}\)) and the simple type
+            %(\(\gamma\rightarrow\gamma\rightarrow\gamma\)), and use the simple type for unification and add the
+            %constraints to a global set of type variable constraints.
 
-            We know the type of \haskell{+} is \(\forall\omega.\;\text{Num }\omega \Rightarrow
-            \omega\rightarrow\omega\rightarrow\omega\) from the definition of \haskell{+} within the typeclass
-            \haskell{Num}, which would have been processed prior to this example. We instantiate this to fit this
-            specific call site (remove the quantifier and replace the quantified type variables with fresh type
-            variables) \(\text{Num }\gamma \Rightarrow \gamma\rightarrow\gamma\rightarrow\gamma\), then split the
-            overloaded type into the type variable constraints (\(\{\text{Num }\gamma\}\)) and the simple type
-            (\(\gamma\rightarrow\gamma\rightarrow\gamma\)), and use the simple type for unification and add the
-            constraints to a global set of type variable constraints.
+            %Unifying the 
 
-            Unifying the 
+            %\begin{figure}
+            %    \centering
+            %    \begin{equation*}
+            %    \begin{split}
+            %        S_\text{add1} & = \text{mgu}(\alpha, \beta \rightarrow \eta) \circ \text{mgu}(\delta, \epsilon \rightarrow \eta) \circ \text{mgu}(\gamma\rightarrow\gamma\rightarrow\gamma, \beta \rightarrow \delta) \\
+            %                      & = [\sfrac{\gamma\rightarrow\gamma}{\alpha}, \sfrac{\gamma\rightarrow\gamma}{\delta}, \sfrac{\gamma}{\epsilon}, \sfrac{\gamma}{\eta}]
+            %    \end{split}
+            %    \end{equation*}
+            %\end{figure}
 
-            \begin{figure}
-                \centering
-                \begin{equation*}
-                \begin{split}
-                    S_\text{add1} & = \text{mgu}(\alpha, \beta \rightarrow \eta) \circ \text{mgu}(\delta, \epsilon \rightarrow \eta) \circ \text{mgu}(\gamma\rightarrow\gamma\rightarrow\gamma, \beta \rightarrow \delta) \\
-                                  & = [\sfrac{\gamma\rightarrow\gamma}{\alpha}, \sfrac{\gamma\rightarrow\gamma}{\delta}, \sfrac{\gamma}{\epsilon}, \sfrac{\gamma}{\eta}]
-                \end{split}
-                \end{equation*}
-            \end{figure}
+            %The type of \haskell{add1} is therefore \(\alpha \; S_\text{add1} = \gamma\rightarrow\gamma\), and as this
+            %declaration is let-bound we insert quantifiers to make it polymorphic: \haskell{add1 :: #\(\forall\gamma.\;
+            %\gamma\rightarrow\gamma\)#}.
 
-            The type of \haskell{add1} is therefore \(\alpha \; S_\text{add1} = \gamma\rightarrow\gamma\), and as this
-            declaration is let-bound we insert quantifiers to make it polymorphic: \haskell{add1 :: #\(\forall\gamma.\;
-            \gamma\rightarrow\gamma\)#}.
+            %Processing \haskell{y} gives:
 
-            Processing \haskell{y} gives:
+            %\begin{figure}[H]
+            %\begin{subfigure}[c]{\textwidth}
+            %    \centering
+            %    \begin{haskellfigure}
+            %    y#\(^\iota\)# = (add1#\(^{\theta\rightarrow\theta}\)# 2#\(^\kappa\)#)#\(^\lambda\)|
+            %    \end{haskellfigure}
+            %\end{subfigure}
 
-            \begin{figure}[H]
-            \begin{subfigure}[c]{\textwidth}
-                \centering
-                \begin{haskellfigure}
-                y#\(^\iota\)# = (add1#\(^{\theta\rightarrow\theta}\)# 2#\(^\kappa\)#)#\(^\lambda\)|
-                \end{haskellfigure}
-            \end{subfigure}
+            %\begin{subfigure}[c]{\textwidth}
+            %    \centering
+            %    \begin{equation*}
+            %    \begin{split}
+            %        S_\text{y} & = \text{mgu}(\iota, \lambda) \circ \text{mgu}(\theta\rightarrow\theta, \kappa\rightarrow\lambda) \\
+            %                   & = [\sfrac{\theta}{\kappa}, \sfrac{\theta}{\iota}, \sfrac{\theta}{\lambda}]
+            %    \end{split}
+            %    \end{equation*}
+            %\end{subfigure}
+            %\end{figure}
 
-            \begin{subfigure}[c]{\textwidth}
-                \centering
-                \begin{equation*}
-                \begin{split}
-                    S_\text{y} & = \text{mgu}(\iota, \lambda) \circ \text{mgu}(\theta\rightarrow\theta, \kappa\rightarrow\lambda) \\
-                               & = [\sfrac{\theta}{\kappa}, \sfrac{\theta}{\iota}, \sfrac{\theta}{\lambda}]
-                \end{split}
-                \end{equation*}
-            \end{subfigure}
-            \end{figure}
+            %As \haskell{y} is let-bound again, we conclude \haskell{y :: |\(\forall \theta. \; \)|}.
 
-            As \haskell{y} is let-bound again, we conclude \haskell{y :: |\(\forall \theta. \; \)|}.
-
-            % Need to add typeclasses to all the above
         }
         \subsubsection{Deoverloader}\label{sec:deoverloading}
         {

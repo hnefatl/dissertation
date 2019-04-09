@@ -215,7 +215,7 @@ descriptions below.
             Instead, we just perform a traversal of the AST early in the pipeline to aggregate the required information.
 
         }
-        \subsection{Dependency Analysis}
+        \subsection{Dependency Analysis}\label{sec:dependency-analysis}
         {
 
             When typechecking, the order of processing declarations matters: we can't infer the type of \haskell{foo =
@@ -409,16 +409,16 @@ descriptions below.
         \end{haskellfigure}
 
         A \haskell{Kind} is often described as the `type of a type': we say that \haskell{True :: Bool}, but looking to
-        a type system `one level up' we can say \haskell{Bool :: *} where \haskell{*} is the type of a type constructor
-        that takes no parameters. The type constructor \haskell{Maybe} has kind \haskell{* -> *}, as it takes a single
-        type parameter: applying it to a type of kind \haskell{*} yields a type of kind \haskell{*}, such as
-        \haskell{Maybe Int}. All Haskell values have a type with kind \haskell{*}: there are no values for types of
+        a type system `one level up' we can say \haskell{Bool :: #\(*\)#} where \(*\) is the type of a type constructor
+        that takes no parameters. The type constructor \haskell{Maybe} has kind \(*\rightarrow*\), as it takes a single
+        type parameter: applying it to a type of kind \(*\) yields a type of kind \(*\), such as
+        \haskell{Maybe Int}. All Haskell values have a type with kind \(*\): there are no values for types of
         other kinds. Kinds are used in the type system to enforce type correctness (or perhaps kind correctness), such
         as rejecting \haskell{Bool Bool} as an invalid type application.
 
-        Type variables have an associated kind to allow for type constraints such as \haskell{pure :: Functor f => a ->
-        f a}, which says that \haskell{pure} can take a value of any type and embed it into a functor parametrised by
-        that type: \haskell{f} has kind \haskell{* -> *}.
+        Type variables have an associated kind to allow for type constraints such as \haskell{pure :: Functor #\(f\)# =>
+        #\(\alpha\rightarrow f \alpha\)#}, which says that \haskell{pure} can take a value of any type and embed it into
+        a functor parametrised by that type: \haskell{f} has kind \(*\rightarrow*\).
 
         A `simple type' is then represented as any tree of applications between type variables and type constants: these
         are types such as \haskell{Int -> Maybe Bool}. Haskell has more complex types, however: overloaded and
@@ -435,23 +435,36 @@ descriptions below.
         type QuantifiedSimpleType = Quantified Type
         \end{haskellfigure}
 
-        A qualified/overloaded type is a simple type with type constraints/predicates attached, such as \haskell{Eq a =>
-        a -> a -> Bool} (the constraint here being just \haskell{Eq a}). The constraints act as restrictions on the
-        valid types that can fulfil the type variable, or equivalently predicates which must hold on the variables: the
-        type signature is only valid for \haskell{a} that are instance of the \haskell{Eq} typeclass.
+        A qualified/overloaded type is a simple type with type constraints/predicates attached, such as \haskell{Eq
+        #\(\alpha\)# => #\(\alpha\rightarrow\alpha\rightarrow\)# Bool} (the constraint here being just \haskell{Eq
+        #\(\alpha\)#}). The constraints act as restrictions on the valid types that can fulfil the type variable, or
+        equivalently predicates which must hold on the variables: the type signature is only valid for \(\alpha\) that
+        are instance of the \haskell{Eq} typeclass.
         
         A quantified/polymorphic type is an overloaded type with a set of type variables that are universally quantified
         over the type, meaning they must later be instantiated to a specific type/type variable (universally quantified
         vaariables are `placeholder' variables). Haskell type signatures are implicitly quantified over all the
-        contained type variables, but some extensions add explicit syntax: \haskell{id :: a -> a} is the same as
-        \haskell{id :: forall a. a -> a} which is the same as \(\forall\alpha.\;\alpha\rightarrow\alpha\).
+        contained type variables, but some extensions add explicit syntax: \haskell{id ::
+        #\(\alpha\rightarrow\alpha\)#}, \haskell{id :: forall #\(\alpha\)#. #\(\alpha\rightarrow\alpha\)#}, and
+        \haskell{id :: #\(\forall\alpha\)#. #\(\alpha\rightarrow\alpha\)#} all mean the same.
 
-        During type inference, types are almost always polymorphic and often overloaded (\haskell{(==) :: forall a. Eq a
-        => a -> a -> Bool}, \haskell{(+) :: forall a. Num a => a -> a -> a}, \haskell{head :: [a] -> a}, ...). After
-        deoverloading (section \ref{sec:deoverloading}), types are never overloaded. This difference is enforced by
-        using \haskell{QuantifiedType} and \haskell{QuantifiedSimpleType} respectively.
+        During type inference, types are almost always polymorphic and often overloaded (\haskell{(==) :: forall
+        #\(\alpha\)#. Eq #\(\alpha\)# => #\(\alpha\rightarrow\alpha\rightarrow\)# Bool}, \haskell{(+) :: forall
+        #\(\alpha\)#. Num #\(\alpha\)# => #\(\alpha\rightarrow\alpha\rightarrow\alpha\)#}, \haskell{head ::
+        [#\(\alpha\)#] -> #\(\alpha\)#}, ...). After deoverloading (section \ref{sec:deoverloading}), types are never
+        overloaded. This difference is enforced by using \haskell{QuantifiedType} and \haskell{QuantifiedSimpleType}
+        respectively.
 
-        \todo[inline]{Substituion section explaining the basic notation? Used quite a lot in the next few subsubsections}
+        \todo[inline]{This is mentioned here as it's a good place to imply that things are really complicated and the following explanation makes simplifying assumptions, but it repeats stuff from the lexing+parsing section.}
+
+        There are many types of `declaration' in the Haskell grammar: pattern bindings like \haskell{x = 1} and
+        \haskell{(y, z@(Just w)) = (1, Just True)}, function definitions like \haskell{f x = x}, and even declarations
+        which contain other declarations, such as class and instance declarations. In the following descriptions,
+        `declaration' is assumed to refer to simple pattern binding declarations like \haskell{x = f y} unless otherwise
+        mentioned: other declaration types are either easy to extend to, don't play much role in typechecking, or have
+        complicated rules that \todo{that what?}
+
+        \todo[inline]{Section giving overview of substitution and unification?}
 
         \subsubsection{Type Inference}
         {
@@ -466,35 +479,78 @@ descriptions below.
             % are resolved. Could have done it that way (maybe should've), but didn't. Compiler is fully pure within the
             % pipeline.
 
-            The implementation is inspired by\cite{THIH}, and proceeds similarly to the Hindley-Milner (HM) type
-            inference algorithm presented in\cite{HM-rules}. Following the naming convention using in\cite{THIH}, we
-            refer to types such as \(\alpha\rightarrow\alpha\) as `simple types' (`monotypes' in HM), types with
-            constraints such as \(\text{Eq}\alpha \Rightarrow \alpha\rightarrow\alpha\rightarrow\text{Bool}\) as
-            `overloaded types', and types involving quantifiers such as \(\forall\alpha.\;\text{Monoid }\alpha
-            \Rightarrow \alpha\rightarrow\alpha\rightarrow\alpha\) as `polymorphic types' (similar to `polytypes' in HM
-            except the quantifiers may wrap an overloaded type or a simple type). It's often helpful to consider simple
-            types as the special case of an overloaded type with an empty context (\(\emptyset \Rightarrow t\)).
-            
-            We process each declaration in dependency order, traversing the AST and tagging each expression with a type
-            variable and unifying types together to derive a substitution from type variables to types. Each term in the
-            syntax has an associated rule for combining the type variables representing the types of its sub-terms,
-            which are computed recursively.
+            The implementation is inspired by \cite{THIH} and uses similar rules as the Hindley-Milner (HM) type
+            inference algorithm presented in \cite{HM-rules}. There are three passes over the source AST, each of which
+            traverses the AST in dependency order as described in \ref{sec:dependency-analysis}.
 
-            One departure from the HM algorithm is that Haskell doesn't require \(\Lambda\) terms in the source language
-            (explicit `forall' terms that generate \(\forall\) quantifiers on type variables): let-bound variables are
-            implicitly polymorphic over all their free type variables, while function parameters are never polymorphic.
-            In practice, this means that in Figure \ref{code:polymorphic-let}, \haskell{f :: #\(\forall \alpha.\;\alpha
+            \begin{enumerate}
+            \item
+            {
+                
+                The first pass tags each subexpression with a type variable, then uses rules similar to the HM inference
+                rules to infer the value of the type variable, usually using the type variables of subterms.
+                
+                Some expressions will generate constraints on type variables: using an overloaded function like
+                \haskell{(+)} will first require instantiating the polymorphic type to an overloaded type
+                (\(\forall\alpha.\;\text{Num}\alpha\Rightarrow\alpha\rightarrow\alpha\rightarrow\alpha\) to
+                \(\text{Num}\beta\Rightarrow\beta\rightarrow\beta\rightarrow\beta\), where \(\beta\) is a fresh unique
+                type variable), then moving the constraints from the type to the set of constraints built up while
+                traversing this declaration to get just \(\beta\rightarrow\beta\rightarrow\beta\). This is the ground
+                type that's unified with the type variable used to tag the use of \haskell{(+)}, and the constraint is
+                stored for use after finishing traversing the declaration.
+
+                After a pattern binding declaration has been fully traversed, types are generated for all the variable
+                names bound by the patterns. This involves adding explicit quantifiers and constraints to the simple
+                type inferred for the top-level expression on the right-hand-side of the binding. All free type
+                variables in the simple type are added as universally quantified variables, and any constraints
+                involving type variables that are free in the simple type are added as the qualifiers to the type.
+
+                \todo[inline]{There should also be a check called the ambiguity check here, but I've not implemented it: it's a bit complicated and at the time I'd overshot my typechecking time budget by multiple weeks. Not having implemented it allows some invalid programs to get through the type system and crash at runtime :(. Not mentioning leaves an obvious gap for people who know this subject, should I say I've not implemented it?}
+
+            }
+            \item
+            {
+
+                The second pass simply traverses the AST again and updates the type variables used to tag each with the
+                final expression type generated by the unification during the first pass.
+                
+                This can't be done efficiently during the first pass: consider the expression \haskell{((+)#\(^{t_1}\)#
+                x#\(^{t_2}\)#)#\(^{t_3}\)#} where the \(t_i\) are type variables tagging the expressions. Assume we've
+                inferred that \haskell{x :: #\(\alpha\)#} and \haskell{(+) ::
+                #\(\beta\rightarrow\beta\rightarrow\beta\)#} as described above, and that we've unified \(t_1\) and
+                \(t_2\) with these types respectively. Inferring the type of the overall expression would proceed by
+                unifying the type of the first formal argument of the function (\(\beta\)) with the first actual
+                argument (\(\alpha\)), and then using this substitution to type the return value of the function as
+                \(\alpha\rightarrow\alpha\rightarrow\alpha\), which we can now unify with \(t_3\). Had we previously
+                updated the subterm's tags to be their inferred concrete types we'd now have to update them again:
+                \(\beta\) is no longer used as it's been unified with \(\alpha\), but our subterms may still contains
+                uses of it.
+
+            }
+            \item
+            {
+
+                The third pass checks that any user-provided type signatures (such as the user explicitly annotating
+                \haskell{5 :: Float}) are valid compared to what was actually inferred: if the user-provided tag is more
+                general than the inferred tag, we reject the program.
+
+                This could be done during the second pass, but was kept as a distinct pass for clarity in the code.
+
+            }
+            \end{enumerate}
+
+            %%%%%%%%%%%% Refactored up to here
+
+            One departure from the HM algorithm is that Haskell restricts polymorphism for some terms: let-bound
+            variables are polymorphic over all their free type variables, while function parameters are never
+            polymorphic. In practice, this means that in the code below, \haskell{f :: #\(\forall \alpha.\;\alpha
             \rightarrow a\)#} whereas \haskell{g :: #\(\alpha \rightarrow \alpha\)#}. The difference in semantics
             ensures that type inference remains decidable.
  
-            \begin{figure}[h]
             \begin{haskellfigure}
             let f x = x in const (f True) (f 1) :: Bool -- This is fine
             (\\g -> const (g True) (g 1)) (\x -> x)     -- This fails to typecheck
             \end{haskellfigure}
-            \caption{}
-            \label{code:polymorphic-let}
-            \end{figure}
             
             Another major difference from HM is the introduction of typeclasses: whenever we encounter an overloaded
             variable such as \haskell{+}, we split the overloaded type into the constraints \(\{\text{Num }\alpha\}\)

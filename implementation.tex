@@ -389,41 +389,42 @@ descriptions below.
     {
 
         Type inference and checking is the most complex part of the compiler pipeline. The type system implemented is
-        intended to be similar to GHC's dialect of Haskell: approximately System \(\text{F}_\omega\) (the
-        polymorphically typed lambda calculus with type constructors) along with algebraic data types and type classes
-        to provide ad-hoc overloading. The approximation is due to a number of alterations made by the Haskell Report to
-        ensure that type inference is decidable, along with the introduction of terms that aren't covered by the pure
-        type system eg.\ literals such as \haskell{7} and \haskell{"foo"}. Finally, due to the complexity of the
-        implementation there will doubtless be bugs affecting correctness in more complex cases not covered by tests.
+        approximately System \(\text{F}_\omega\) (the polymorphically typed lambda calculus with type constructors)
+        along with algebraic data types, and type classes to provide ad-hoc overloading. The approximation is due to a
+        number of alterations made by the Haskell Report to ensure that type inference is decidable.
         
         This is a subset of the type system used by GHC (System \(\text{F}_\text{C}\)), as that compiler provides
         extensions such as GADTs and type families requiring a more complex type system.
 
-        The full grammar of types as defined in the compiler are explained below:
-
-        \begin{haskellfigure}
-        data Kind = KindStar
-                  | KindFun Kind Kind
-        \end{haskellfigure}
-
-        A \haskell{Kind} is `the type of a type', and is used to describe type constructors: what characterises
-        \(\text{Maybe}\) versus \(\text{Maybe}\;\alpha\)?
-        
-        : while the term \haskell{f} might have the type
-        \(\alpha\rightarrow\text{Maybe}\;\alpha\), the type has \textit{kind} \texttt{*}. 
-
-        \todo[inline]{Finish describing kinds and the other type datatypes}
-
-        \todo[inline]{Work out how to use | without the red box in the pdf.}
-
         \begin{haskellfigure}
         data TypeVariable = TypeVariable TypeVariableName Kind
+        data TypeConstant = TypeConstant TypeVariableName Kind
 
         data Type = TypeVar TypeVariable
                   | TypeCon TypeConstant
                   | TypeApp Type Type Kind
 
+        data Kind = KindStar
+                  | KindFun Kind Kind
+        \end{haskellfigure}
 
+        A \haskell{Kind} is often described as the `type of a type': we say that \haskell{True :: Bool}, but looking to
+        a type system `one level up' we can say \haskell{Bool :: *} where \haskell{*} is the type of a type constructor
+        that takes no parameters. The type constructor \haskell{Maybe} has kind \haskell{* -> *}, as it takes a single
+        type parameter: applying it to a type of kind \haskell{*} yields a type of kind \haskell{*}, such as
+        \haskell{Maybe Int}. All Haskell values have a type with kind \haskell{*}: there are no values for types of
+        other kinds. Kinds are used in the type system to enforce type correctness (or perhaps kind correctness), such
+        as rejecting \haskell{Bool Bool} as an invalid type application.
+
+        Type variables have an associated kind to allow for type constraints such as \haskell{pure :: Functor f => a ->
+        f a}, which says that \haskell{pure} can take a value of any type and embed it into a functor parametrised by
+        that type: \haskell{f} has kind \haskell{* -> *}.
+
+        A `simple type' is then represented as any tree of applications between type variables and type constants: these
+        are types such as \haskell{Int -> Maybe Bool}. Haskell has more complex types, however: overloaded and
+        polymorphic types.
+
+        \begin{haskellfigure}
         data TypePredicate = IsInstance ClassName Type
 
         data Qualified a = Qualified (Set TypePredicate) a
@@ -434,10 +435,21 @@ descriptions below.
         type QuantifiedSimpleType = Quantified Type
         \end{haskellfigure}
 
+        A qualified/overloaded type is a simple type with type constraints/predicates attached, such as \haskell{Eq a =>
+        a -> a -> Bool} (the constraint here being just \haskell{Eq a}). The constraints act as restrictions on the
+        valid types that can fulfil the type variable, or equivalently predicates which must hold on the variables: the
+        type signature is only valid for \haskell{a} that are instance of the \haskell{Eq} typeclass.
+        
+        A quantified/polymorphic type is an overloaded type with a set of type variables that are universally quantified
+        over the type, meaning they must later be instantiated to a specific type/type variable (universally quantified
+        vaariables are `placeholder' variables). Haskell type signatures are implicitly quantified over all the
+        contained type variables, but some extensions add explicit syntax: \haskell{id :: a -> a} is the same as
+        \haskell{id :: forall a. a -> a} which is the same as \(\forall\alpha.\;\alpha\rightarrow\alpha\).
 
-
-        \todo[inline]{Include examples of types demonstrating the features? Examples below might be sufficient. Think an appendix would be best, or should I just include here?}
-        \todo[inline]{Include simple BNF grammar for the valid types: can modify the one on the HM wiki page}
+        During type inference, types are almost always polymorphic and often overloaded (\haskell{(==) :: forall a. Eq a
+        => a -> a -> Bool}, \haskell{(+) :: forall a. Num a => a -> a -> a}, \haskell{head :: [a] -> a}, ...). After
+        deoverloading (section \ref{sec:deoverloading}), types are never overloaded. This difference is enforced by
+        using \haskell{QuantifiedType} and \haskell{QuantifiedSimpleType} respectively.
 
         \todo[inline]{Substituion section explaining the basic notation? Used quite a lot in the next few subsubsections}
 
@@ -586,7 +598,7 @@ descriptions below.
 
             % Need to add typeclasses to all the above
         }
-        \subsubsection{Deoverloader}
+        \subsubsection{Deoverloader}\label{sec:deoverloading}
         {
 
             The deoverloading stage performs a translation which eliminates typeclasses, resulting in an AST tagged with
@@ -1491,6 +1503,10 @@ descriptions below.
             \todo[inline]{Compare to GHC's approach? Looks similar}
 
         }
+    }
+    \subsection{Optimisations}
+    {
+        % Stuff
     }
 }
 

@@ -490,7 +490,7 @@ descriptions below.
 
                 After a pattern binding declaration has been fully traversed, types are generated for all the variable
                 names bound by the patterns. This involves adding explicit quantifiers and constraints to the simple
-                type inferred for the top-level expression on the right-hand-side of the binding. All free type
+                type inferred for the top-level expression on the right-hand side of the binding. All free type
                 variables in the simple type are added as universally quantified variables, and any constraints
                 involving type variables that are free in the simple type are added as the qualifiers to the type.
 
@@ -861,8 +861,8 @@ descriptions below.
             \item
             {
 
-                Right-hand-side terms in ILA (\haskell{AnfRhs}) were either lambda expressions or a let-binding/case
-                expression/\dots -- in ILB, the only right-hand-side term is a \haskell{RhsClosure}. A closure with no
+                Right-hand side terms in ILA (\haskell{AnfRhs}) were either lambda expressions or a let-binding/case
+                expression/\dots -- in ILB, the only right-hand side term is a \haskell{RhsClosure}. A closure with no
                 arguments is essentially a thunk, a term that exists purely to delay computation of an expression, while
                 a closure with arguments is the familiar lambda term.
 
@@ -1497,13 +1497,35 @@ descriptions below.
         \subsubsection{Binding Deduplication}\label{sec:binding-dedupe}
         {
 
-            
+            The binding deduplication pass eliminates any bindings where the right-hand side of the binding is
+            syntactically identical to that of another in-scope binding, and replaces references to the eliminated
+            binding with references to the existing one. This is a rather unusual optimisation to perform but it has
+            significantly positive effects on program size, and can reduce computation.
+
+            As the intermediate languages are mostly in ANF, there are a great deal of let-bindings. In particular,
+            simple expressions like \haskell{True && True} in Haskell are converted into \haskell{let v1 = True in let
+            v2 = True in (&&) v1 v2} in ILB. This is necessary in general in order to provide lazy evaluation, but in
+            simple cases like this it introduces obvious redundancy. Binding deduplication removes the redundancy by
+            transforming the ILB version into \haskell{let v1 = True in (&&) v1 v1}. This reduces code size and removes
+            a heap allocation, and if the redundant expression had been more complex it would also have allowed for the
+            value to only be computed once, instead of twice.
+
+            This optimisation is an ILB to ILB transformation like let-lifting, for similar reasons. In addition, this
+            transformation is performed after let-lifting as it produces better results than before: after lifting
+            bindings as high as possible there are more in-scope bindings at any program point, which increases the
+            potential for bindings to be removed by this pass.
+
+            \todo[inline]{Name-drop `phase ordering' at some point to sound smart?}
 
         }
         \subsubsection{Code generation}
         {
 
-            Smart code gen?
+            General smart codegen choices to prevent needless inefficiencies: using \monospace{lookupswitch} instead of
+            chained \monospace{ifeq}s, global closures etc.\ are just referenced instead of being created like local
+            closures, ...
+
+            \todo[inline]{Not planning to write yet: would like to sneakily implement unused code elimination in the tons of time I have available and write that up instead, as a `proper optimisation technique'.}
 
         }
     }

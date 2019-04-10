@@ -468,9 +468,6 @@ descriptions below.
         \subsubsection{Type Inference}
         {
 
-            % Instance typing, with on-demand loading of instances. Refer back to renaming section
-            % Mention Outside-In(X) as improvement
-
             The implementation is inspired by \cite{THIH} and uses similar rules as the Hindley-Milner (HM) type
             inference algorithm presented in \cite{HM-rules}. There are three passes over the source AST, each of which
             traverses the AST in dependency order as described in \ref{sec:dependency-analysis}.
@@ -1466,8 +1463,49 @@ descriptions below.
     \subsection{Optimisations}
     {
     
-        
+        Many JVM implementations perform low-level optimisations on the bytecode while just-in-time compiling it to
+        native machine code\todo{citation}. The Jikes JVM, as of
+        2006\footnote{http://www.complang.tuwien.ac.at/andi/ACACES06.pdf}, performs method inlining, common
+        subexpression elimination, copy/constant propagation, peephole passes, instruction reordering and loop
+        unrolling, as well as adaptive optimisations such as selective optimisation to improve startup time.
 
+        This somewhat reduces the need to perform low-level optimisations within the compiler, so focus is instead given
+        to higher-level optimisations.
+
+        \subsubsection{Let-lifting}
+        {
+
+            Let lifting aims to move let-bound variables and functions `up' the AST, to as close to the top-level as
+            possible while preserving the semantics. This can reduce the number of heap allocations and eliminate the
+            need for initialisation code, saving on program size and execution time.
+
+            \todo[inline]{Example?}
+            
+            Lifting variables and functions to the top level is desirable as they can be referenced immediately by other
+            code without needing to initialise them: this eliminates initialisation code and in the case of variables
+            additionally prevents allocating a new thunk on the heap. Lifting expressions as high as possible but not
+            all the way to the top doesn't have any immediate advantages, but exposes benefits after the Binding
+            Deduplication pass, described in \ref{sec:binding-dedupe}.
+
+            Let lifting is an ILB to ILB transformation, as ILB exposes the most uses of let-bindings: almost every
+            subexpression in a computation is let-bound to a variable as ILB requires that all function applications
+            only use trivial arguments. This provides a lot of freedom to move bindings around.
+
+            \todo[inline]{Nomal let lifting involves lifting functions out of scope of their free variables then adding the free vars as arguments: mine doesn't do this as I didn't have time to look into how to balance adding more arguments versus removing free variables}
+
+        }
+        \subsubsection{Binding Deduplication}\label{sec:binding-dedupe}
+        {
+
+            
+
+        }
+        \subsubsection{Code generation}
+        {
+
+            Smart code gen?
+
+        }
     }
 }
 

@@ -460,8 +460,8 @@ descriptions below.
         \haskell{(y, z@(Just w)) = (1, Just True)}, function definitions like \haskell{f x = x}, and even declarations
         which contain other declarations, such as class and instance declarations. In the following descriptions,
         `declaration' is assumed to refer to simple pattern binding declarations like \haskell{x = f y} unless otherwise
-        mentioned: other declaration types are either easy to extend to, don't play much role in typechecking, or have
-        complicated rules that \todo{that what?}
+        mentioned: other declaration types are either easy to extend these approaches to, don't play much role in
+        typechecking, or \todo{are sufficiently complicated that I don't want to talk about them?}
 
         \todo[inline]{Section giving overview of substitution and unification?}
 
@@ -470,7 +470,7 @@ descriptions below.
 
             The implementation is inspired by \cite{THIH} and uses similar rules as the Hindley-Milner (HM) type
             inference algorithm presented in \cite{HM-rules}. There are three passes over the source AST, each of which
-            traverses the AST in dependency order as described in \ref{sec:dependency-analysis}.
+            traverses the AST in dependency order as previously described in \ref{sec:dependency-analysis}.
 
             \begin{enumerate}
             \item
@@ -1464,10 +1464,10 @@ descriptions below.
     {
     
         Many JVM implementations perform low-level optimisations on the bytecode while just-in-time compiling it to
-        native machine code\todo{citation}. The Jikes JVM, as of
-        2006\footnote{http://www.complang.tuwien.ac.at/andi/ACACES06.pdf}, performs method inlining, common
-        subexpression elimination, copy/constant propagation, peephole passes, instruction reordering and loop
-        unrolling, as well as adaptive optimisations such as selective optimisation to improve startup time.
+        native machine code. The Jikes JVM, as of 2006\footnote{http://www.complang.tuwien.ac.at/andi/ACACES06.pdf},
+        performs method inlining, common subexpression elimination, copy/constant propagation, peephole passes,
+        instruction reordering and loop unrolling, as well as adaptive optimisations such as selective optimisation to
+        improve startup time.
 
         This somewhat reduces the need to perform low-level optimisations within the compiler, so focus is instead given
         to higher-level optimisations.
@@ -1525,7 +1525,7 @@ descriptions below.
             chained \monospace{ifeq}s, global closures etc.\ are just referenced instead of being created like local
             closures, ...
 
-            \todo[inline]{Not planning to write yet: would like to sneakily implement unused code elimination in the tons of time I have available and write that up instead, as a `proper optimisation technique'.}
+            \todo[inline]{Not planning to write yet: would like to sneakily implement unused code elimination in the \textit{tons} of time I have available and write that up instead, as a `proper optimisation technique'.}
 
         }
     }

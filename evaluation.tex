@@ -1,0 +1,59 @@
+\documentclass[dissertation.tex]{subfiles}
+
+\begin{document}
+
+The goal of this project was to produce a compiler from a simple subset of Haskell into executable Java Bytecode,
+applying some optimisations: this has been achieved. Beyond the base requirements set out in the project proposal, focus
+was given to supporting new language features over implementing optimisations. A number of the extensions implementing
+language features have been completed successfully, whereas many of the optimisation extensions have not been
+implemented due to time constraints.
+
+This chapter will evaluate the project on a number of axes: support for language features (qualitative), performance of
+compiled programs and the compiler itself (quantitative), and adherence to the planned schedule.
+\todo[inline]{Don't know if `how well the schedule went' fits in the evaluation section}
+
+\section{Language Features}
+{
+
+}
+\section{Performance}
+{
+
+}
+\section{Schedule}
+{
+
+    \todo[inline]{This is a WIP rehash of the stuff from the progress report explaining why the schedule got messed up, I feel it'll help explain why optimisations didn't get much splotlight.}
+
+    The core features of Haskell are tightly coupled: simple features such as arithmetic operators require a significant
+    level of support for other language features. For example, the \haskell{(+)} function relies on:
+
+    \begin{description}
+    \item[Typeclasses:] \haskell{(+)} is defined by the \haskell{Num} typeclass in order to allow ad-hoc overloading.
+    \item[Typeclass instances:]
+    {
+        The types that can be used as arguments to the overloaded functions, and the implementation of the overloads,
+        are defined by typeclass instances.
+    }
+    \item[Datatypes:]
+    {
+        The most common implementation of typeclasses involves translating classes into datatypes and instances into
+        values of the datatype.
+    }
+    \end{description}
+
+    It would be possible to implement a function like \haskell{(+)} which only worked for integers and avoid all of the
+    dependencies on other language features, but then the language simply wouldn't be Haskell: it would resemble a lazy
+    variant of ML's semantics.
+
+    All of these language features are very expensive to implement, as they span multiple layers of the compiler: the
+    type checker needs to be able to infer and check types based on the usage of these features, they need to be
+    translatable into intermediate languages, and the code generator needs to be able to produce bytecode reflecting the
+    semantics.
+
+}
+
+
+
+
+\end{document}

@@ -9,15 +9,86 @@ language features have been completed successfully, whereas many of the optimisa
 implemented due to time constraints.
 
 This chapter will evaluate the project on a number of axes: support for language features (qualitative), performance of
-compiled programs and the compiler itself (quantitative), and adherence to the planned schedule.
+compiled programs and the compiler itself (mostly quantitative), and adherence to the planned schedule.
 \todo[inline]{Don't know if `how well the schedule went' fits in the evaluation section}
+
+\todo[inline]{Mention somewhere pros/cons of using JVB}
 
 \section{Language Features}
 {
 
+    The planned subset of Haskell was functions, arithmetic, booleans, lists, simple typeclasses, and laziness. All of
+    these features can be demonstrated to work by running the following program:
+
+    \begin{haskellfigure}
+    -- foldl :: (b -> a -> b) -> b -> [a] -> b
+    foldl _ e [] = e
+    foldl f e (x:xs) = foldl f (f e x) xs
+
+    -- sum :: Num a => [a] -> a
+    sum = foldl (+) 0
+
+    -- take :: Int -> [a] -> [a]
+    take 0 _ = []
+    take _ [] = undefined
+    take n (x:xs) = x:take (n-1) xs
+
+    -- ones :: Num a => [a]
+    ones = 1:ones
+
+    -- summed :: Bool
+    summed = sum (take 10 ones :: [Int]) == 10
+    \end{haskellfigure}
+
+    Extensions included introducing support for user-defined datatypes, user-defined typeclasses and instances, and
+    monads: these can be demonstrated by the following program:
+
+    \todo[inline]{Hard to give an example program using monads without ending up doing a monad tutorial}
+    \begin{haskellfigure}
+    data Maybe a = Nothing | Just a
+    data [] a = [] | a:[a]
+    
+    class Monad m where
+        (>>=) :: m a -> (a -> m b) -> m b
+        return :: a -> m a
+    instance Monad Maybe where
+        Nothing >>= f = Nothing
+        (Just x) >>= f = f x
+        return = Just
+    instance Monad [] where
+        [] >>= f = []
+        (x:xs) >>= f = (f x) ++ (f >>= xs)
+        return x = [x]
+
+    -- The monad instance for maybe can be interpreted as function application
+    -- with support for chaining failure
+    divide x y = if y == 0 then Nothing else Just (x / y)
+    x = divide 4 0 >>= divide 20 -- Evaluates to Nothing
+
+    -- The monad instance for lists can be interpreted as performing
+    -- non-deterministic computation: each step can have multiple results
+    countdown 0 = []
+    countdown n = n:countdown (n - 1)
+    onlyEven x = if even x then [x] else []
+    y = [1,2,3] >>= countdown -- Evaluates to [1,2,1,3,2,1]
+    z = y >>= onlyEven -- Evaluates to [2,2]
+    \end{haskellfigure}
+
+    \todo[inline]{Double triple check these programs work (add to tests maybe) as it'd be really awkward if someone tries to test them and they don't...}
+
+    Each simple feature name necessarily glosses over many smaller constituent features necessary for use. For example,
+    the `lists' feature allows for lists to be created using either the plain constructor syntax
+    (\haskell{1:(2:(3:[]))}) or syntactic sugar for lists (\haskell{[1,2,3]}), and matched using patterns (eg.\
+    \haskell{[x,y] = [1,2]}). However, there's no support for list comprehensions (eg.\ \haskell{[f x | x <- [1,2,3],
+    even x]}) as they weren't a high priority feature.
+    
+    \todo[inline]{Should I talk about missing features? Typeclass/instance superclasses, default method implementations in classes, symbol type signatures...}
+
 }
 \section{Performance}
 {
+
+
 
 }
 \section{Schedule}

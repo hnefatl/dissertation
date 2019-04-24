@@ -2,23 +2,28 @@
 
 \begin{document}
 
-The goal of this project was to produce a compiler from a simple subset of Haskell into executable Java Bytecode,
-applying some optimisations: this has been achieved. Beyond the base requirements set out in the project proposal, focus
-was given to supporting new language features over implementing optimisations. A number of the extensions implementing
-language features have been completed successfully, whereas many of the optimisation extensions have not been
-implemented due to time constraints.
+\section{Success Criteria}
+{
 
-This chapter will evaluate the project on a number of axes: support for language features (qualitative), performance of
-compiled programs and the compiler itself (mostly quantitative), and adherence to the planned schedule.
-\todo[inline]{Don't know if `how well the schedule went' fits in the evaluation section}
+    The success criteria laid out in the project proposal have all been satisfied:
 
-\todo[inline]{Mention somewhere pros/cons of using JVB}
+    \begin{itemize}
+    \item Translate simple Haskell programs into executable Java bytecode.
+    \item Reject ill-formed programs due to syntactic or type errors.
+    \item Perform simple optimisations during translation.
+    \item Perform evaluation using non-strict semantics.
+    \end{itemize}
+    
+    Beyond these base requirements, a number of the extensions implementing language features have been completed
+    successfully.
 
+    \todo[inline]{Mention somewhere pros/cons of using JVB}
+}
 \section{Language Features}
 {
 
-    The planned subset of Haskell was functions, arithmetic, booleans, lists, simple typeclasses, and laziness. All of
-    these features can be demonstrated to work by running the following program:
+    The planned subset of Haskell was functions, arithmetic, booleans, lists, simple typeclasses, and laziness. The
+    following program demonstrates various use-cases of all of these features:
 
     \begin{haskellfigure}
     -- foldl :: (b -> a -> b) -> b -> [a] -> b
@@ -36,14 +41,15 @@ compiled programs and the compiler itself (mostly quantitative), and adherence t
     -- ones :: Num a => [a]
     ones = 1:ones
 
-    -- summed :: Bool
-    summed = sum (take 10 ones :: [Int]) == 10
+    -- valid :: Bool
+    valid = sum (take 10 ones :: [Int]) == 10
     \end{haskellfigure}
 
-    Extensions included introducing support for user-defined datatypes, user-defined typeclasses and instances, and
-    monads: these can be demonstrated by the following program:
+    Successfuly implemented extensions include support for user-defined datatypes, user-defined typeclasses and
+    instances, monads, and some syntactic features like operator sections and support for point-free notation: these can
+    be demonstrated by the following program:
 
-    \todo[inline]{Hard to give an example program using monads without ending up doing a monad tutorial}
+    \todo[inline]{Hard to give an example program using monads without ending up doing a monad tutorial!}
     \begin{haskellfigure}
     data Maybe a = Nothing | Just a
     data [] a = [] | a:[a]
@@ -74,19 +80,61 @@ compiled programs and the compiler itself (mostly quantitative), and adherence t
     z = y >>= onlyEven -- Evaluates to [2,2]
     \end{haskellfigure}
 
-    \todo[inline]{Double triple check these programs work (add to tests maybe) as it'd be really awkward if someone tries to test them and they don't...}
+    \todo[inline]{Double triple check these programs work (add to tests) as it'd be really awkward if someone tries to test them and they don't...}
 
     Each simple feature name necessarily glosses over many smaller constituent features necessary for use. For example,
     the `lists' feature allows for lists to be created using either the plain constructor syntax
     (\haskell{1:(2:(3:[]))}) or syntactic sugar for lists (\haskell{[1,2,3]}), and matched using patterns (eg.\
     \haskell{[x,y] = [1,2]}). However, there's no support for list comprehensions (eg.\ \haskell{[f x | x <- [1,2,3],
     even x]}) as they weren't a high priority feature.
-    
-    \todo[inline]{Should I talk about missing features? Typeclass/instance superclasses, default method implementations in classes, symbol type signatures...}
 
+    \todo[inline]{This \^ paragraph is kinda trying to explain that there's a lot of things associated with each coarse `feature', and that I've implemented all the obvious ones but that there are other aspects I won't have implemented. Unnecessary?}
+
+    \todo[inline]{Should I talk about missing features? Typeclass/instance superclasses, default method implementations in classes, symbol type signatures...}
+    
+    \subsubsection{Correctness}
+    {
+
+        Correctness of the various stages of the compiler has been empirically tested using a large set of unit and
+        integration tests: these include tests of complete programs, such as those used for benchmarking.
+        
+        At the time of writing, there are 245\todo{Update} tests. These are run both on my development machine
+        (described in \ref{sec:test-environment}), and on machines provided by Travis
+        CI\footnote{\url{https://travis-ci.org/hnefatl/dissertation-project}} whenever a commit is pushed to my
+        development GitHub repository. This ensures the compiler works in a clean, reproducible environment and not just
+        on my development system.
+        
+    }
 }
 \section{Performance}
 {
+
+    \subsubsection{Test Environment}\label{sec:test-environment}
+    {
+
+        Benchmarks were performed as the only active process on my development machine: a ThinkPad 13 running Debian 9
+        with 8GB RAM and an Intel Core i5-7200U CPU (2.5GHz).
+
+    }
+
+    Bar charts of speed + code size + compilation time + maybe memory allocation if I can measure it comparing my
+    compiler to Frege and Eta, other Haskell->JVM compilers. Including compilation time because it looks like one thing
+    my compiler is good at, it gets destroyed in performance.
+
+    Heatmap plot showing speedup (heat) achieved by different combinations of optimisations (y axis) against benchmarks
+    (x axis) for my compiler.
+
+    Can conclude that my implementation of thunks is inefficient, compare to Frege/Eta's implementation. Think they both
+    use loads of anonymous classes for their implementations while mine avoids that: can frame it as `I tried a
+    different approach and found it was less performant', not necessarily a bad thing as speed was never a focus, and
+    make guesses (and call them hypotheses) as to why their version is better.
+
+    % Graphs
+    % - Execution time 
+    % - Code size
+    % - Memory allocation? Hard to measure with frameworks
+    % Test machine spec
+    % How were tests performed? JMH
 
 
 

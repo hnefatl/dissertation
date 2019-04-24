@@ -18,3 +18,13 @@
       fmap _ (Left x) = Left x        -- :: (b -> d) -> Either a b -> Either c d
 
   Middle implementation forces the types to unify to `(b -> b) -> Either a b -> Either a b`.
+
+- Issue with patterns and typeclasses...
+
+      let (x,y) = (1,2) in x
+  
+  Gets deoverloaded into
+
+     let (x,y) = \dNumt1 dNumt2 -> (fromInteger dNumt1 1, fromInteger dNumt2 2) in x
+
+  But now we're binding a function to a tuple...

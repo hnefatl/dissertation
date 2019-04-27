@@ -103,40 +103,94 @@
         CI\footnote{\url{https://travis-ci.org/hnefatl/dissertation-project}} whenever a commit is pushed to my
         development GitHub repository. This ensures the compiler works in a clean, reproducible environment and not just
         on my development system.
+
+        As the compiler is developed using Haskell, some forms of compiler bugs that could affect the correctness of
+        translation have been mitigated: type errors and bugs due to mutable state cannot exist within the compiler.
         
     }
 }
 \section{Performance}
 {
 
-    \subsubsection{Test Environment}\label{sec:test-environment}
+    Although performance was not an important aspect of the success criteria, it's still interesting to evaluate the
+    effectiveness of optimisations on the output program, and the performance of the compiler and its output compared to
+    other Haskell to JVB compilers.
+
+    The two compilers used for comparisons are Eta and Frege. Eta is a fork of GHC that replaces the backend with one
+    targeting JVB: it can take advantage of the powerful optimisations already available in the front- and middle-end of
+    GHC, which is the world-leading Haskell compiler, so I expect it to perform better than both my compiler and Frege.
+    Frege is a from-scratch compiler that compiles to Java instead of JVB, then uses a Java compiler to produce JVB. I
+    expect Frege to perform better than my compiler, given the maturity of the project (under development since at least
+    2011).
+
+    Both Eta and Frege enable optimisations by default, so all metrics given for them have optimisations enabled.
+    Metrics given for my compiler are labelled to indicate whether or not optimisations have been applied.
+
+    \subsection{Test Environment}\label{sec:test-environment}
     {
 
         Benchmarks were performed as the only active process on my development machine: a ThinkPad 13 running Debian 9
         with 8GB RAM and an Intel Core i5-7200U CPU (2.5GHz).
 
     }
+    \subsection{Benchmark Approach}
+    {
 
-    Bar charts of speed + code size + compilation time + maybe memory allocation if I can measure it comparing my
-    compiler to Frege and Eta, other Haskell->JVM compilers. Including compilation time because it looks like one thing
-    my compiler is good at, it gets destroyed in performance.
+        All of the compilers being compared output JVB, so a natural choice of benchmarking framework was the Java
+        Microbenchmark Harness (JMH)\todo{cite}. This allows for accurate Java program benchmarking by handling JVM
+        warmup, disabling garbage collection, etc. There are downsides to the framework though, notably that it doesn't
+        record memory usage, and that it only appears to expose percentiles and histograms of the results through its
+        Java API, not the raw data.
 
-    Heatmap plot showing speedup (heat) achieved by different combinations of optimisations (y axis) against benchmarks
-    (x axis) for my compiler.
+        To measure compiler performance, a more naïve approach was taken: the execution times of 50 sequential
+        compilations were recorded for each compiler.
+        
+        For my compiler, the time taken to write the compiled class files to disk and compress them into a jar file was
+        computed by measuring the difference between compilation runs which write to disk, and those which don't (using
+        the \monospace{--no-write-jar} command-line-flag). This data is used in Figure \ref{fig:compiler-perf}.
 
-    Can conclude that my implementation of thunks is inefficient, compare to Frege/Eta's implementation. Think they both
-    use loads of anonymous classes for their implementations while mine avoids that: can frame it as `I tried a
-    different approach and found it was less performant', not necessarily a bad thing as speed was never a focus, and
-    make guesses (and call them hypotheses) as to why their version is better.
+    }
+    \subsection{Execution Speed}
+    {
 
-    % Graphs
-    % - Execution time 
-    % - Code size
-    % - Memory allocation? Hard to measure with frameworks
-    % Test machine spec
-    % How were tests performed? JMH
+        Figure \ref{fig:perf} demonstrates the runtime performance of the benchmark programs after compilation by the
+        different compilers. It is evident that the performance of programs compiled by my compiler is significantly
+        lower than those from Frege or Eta, but also that applying optimisations can produce a reasonable speedup.
 
+        Interestingly Frege produced more performant programs than Eta, which wasn't expected.
 
+        \begin{figure}[h]
+            \centering
+            \captionsetup{width=0.8\textwidth}
+            \includegraphics[width=0.9\textwidth]{graphs/perf.pdf}
+            \caption{Median runtime in milliseconds of the benchmark programs. Error bars show 25th and 75th percentiles.}
+            \label{fig:perf}
+        
+            \todo[inline]{Update to use min with error bars showing 25th+50th quartile or similar}
+        \end{figure}
+
+        % Why is mine slower. Ideally include a profiling plot or something.
+
+        % Can conclude that my implementation of thunks is inefficient, compare to Frege/Eta's implementation. Think
+        % they both use loads of anonymous classes for their implementations while mine avoids that: can frame it as `I
+        % tried a different approach and found it was less performant', not necessarily a bad thing as speed was never a
+        % focus, and make guesses (and call them hypotheses) as to why their version is better.
+
+    }
+    \subsection{Compiler Performance}
+    {
+
+        Figure \ref{fig:compiler-perf} presents the time taken to compile each benchmark program. 
+        
+        \begin{figure}[h]
+            \centering
+            \captionsetup{width=0.8\textwidth}
+            \includegraphics[width=0.9\textwidth]{graphs/compiler_perf.pdf}
+            \caption{Minimum time taken to compile the benchmark program. Dark grey section for the times from my compiler indicates the time taken writing the compiled classes to a compressed Jar file.}
+            \label{fig:compiler-perf}
+        \end{figure}
+
+    }
 
 }
 \section{Schedule}

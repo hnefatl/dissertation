@@ -26,57 +26,34 @@ descriptions below.
 \item[Preprocessing]
 {
     \hfill
-    \begin{itemize}
-    \item
-    {
 
-        The renamer renames each variable so that later stages can assume each variable name is unique:
-        this reduces complexity by removing the possibility of variable shadowing (eg.\ \haskell{let x = 1 in let x = 2 in x}).
+    The renamer renames each variable so that later stages can assume each variable name is unique: this reduces
+    complexity by removing the possibility of variable shadowing (eg.\ \haskell{let x = 1 in let x = 2 in x}).
 
-    }
-    \item
-    {
+    Kind and Class analysis both simply extract useful information about the declarations in the source so that stages
+    of the type checker are simpler.
 
-        Kind and Class analysis both simply extract useful information about the declarations in the source so that
-        stages of the type checker are simpler.
+    Dependency analysis computes a partial order on the source declarations so that the typechecker can process them in
+    a valid order.
 
-    }
-    \item
-    {
-
-        Dependency analysis computes a partial order on the source declarations so that the typechecker can process
-        them in a valid order.
-
-    }
-    \end{itemize}
 }
 \item[Type Checker]
 {
     \hfill
-    \begin{itemize}
-    \item
-    {
 
-        The type inference stage infers polymorphic overloaded types for each symbol, checks them against any
-        user-provided type signatures, and alters the AST so that each expression is tagged with its type.
+    The type inference stage infers polymorphic overloaded types for each symbol, checks them against any user-provided
+    type signatures, and alters the AST so that each expression is tagged with its type.
 
-    }
-    \item
-    {
+    Deoverloading converts polymorphic overloaded types to polymorphic types similar to those of System F, and alters
+    the AST to implement typeclasses using dictionary-passing.
 
-        Deoverloading converts polymorphic overloaded types to polymorphic types similar to those of System F, and
-        alters the AST to implement typeclasses using dictionary-passing.
-
-    }
-    \end{itemize}
 }
 \item[Lowering]
 {
     \hfill
 
-    The lowering stage transforms the Haskell source AST into Intermediate Language A (ILA), then rearranges that
-    tree into Administrative Normal Form (ILA-ANF), before finally transforming it into Intermediate Language B
-    (ILB).
+    The lowering stage transforms the Haskell source AST into Intermediate Language A (ILA), then rearranges that tree
+    into Administrative Normal Form (ILA-ANF), before finally transforming it into Intermediate Language B (ILB).
 
 }
 \item[Optimisations]
@@ -94,8 +71,8 @@ descriptions below.
     \hfill
 
     ILB is transformed into Java Bytecode (JVB), and a modified version of an existing library
-    (hs-java\footnote{https://github.com/hnefatl/hs-java}) is used to convert a logical representation of the
-    bytecode into a set of class files, which are then packaged into an executable Jar file.
+    (hs-java\footnote{https://github.com/hnefatl/hs-java}) is used to convert a logical representation of the bytecode
+    into a set of class files, which are then packaged into an executable Jar file.
 
 }
 \end{description}
@@ -229,11 +206,16 @@ descriptions below.
             we don't rename type constants). This separation is upheld in the compiler by using different types for
             each, and is represented in the dependency graph below by colouring variables red and constants blue.
 
-            The strongly connected components of the dependency graph correspond to sets of mutually recursive
-            declarations, and the partial order between components gives us the order to typecheck each set. For
-            example, from the dependency graph in Figure \ref{fig:dependency-graph} we know that: we need to typecheck
-            \(d_3\), \(d_4\), and \(d_5\) together as they're contained within the same strongly-connected component so
-            are mutually recursive; we have to typecheck \(d_2\) last, after both other components.
+            The strongly connected components (SCCs) of the dependency graph correspond to sets of mutually recursive
+            declarations, and the partial order between components gives us the order to typecheck each set. The
+            compiler uses an existing Haskell library to compute the SCCs
+            (\texttt{containers}\footnote{\url{https://hackage.haskell.org/package/containers}}), which uses the [].
+
+            \todo[inline]{Add reference to Sharir `STRONG-CONNECTIVIT;Y ALGORITHM AND ITS APPLICATIONS IN DATA FLOW ANALYSIS'}
+            
+            For example, from the dependency graph in Figure \ref{fig:dependency-graph} we know that: we need to
+            typecheck \(d_3\), \(d_4\), and \(d_5\) together as they're contained within the same strongly-connected
+            component so are mutually recursive; we have to typecheck \(d_2\) last, after both other components.
 
             \begin{figure}[h]
             \centering
@@ -494,7 +476,14 @@ descriptions below.
                 variables in the simple type are added as universally quantified variables, and any constraints
                 involving type variables that are free in the simple type are added as the qualifiers to the type.
 
-                \todo[inline]{There should also be a check called the ambiguity check here, but I've not implemented it: it's a bit complicated and at the time I'd overshot my typechecking time budget by multiple weeks. Not having implemented it allows some invalid programs to get through the type system and crash at runtime :(. Not mentioning leaves an obvious gap for people who know this subject, should I say I've not implemented it?}
+                There is a type-system correctness check called the `ambiguity check', which ensures that types
+                variables involved in overloaded types always converge to a ground type such as \haskell{Int}. This
+                prevents programs which have ambiguous semantics (multiple possible runtime behaviours) from being
+                reported as valid. My compiler does not implement this check, which allows some programs to be accepted
+                by the compiler but crash at runtime (such cases can often be fixed by adding explicit type signatures).
+                This feature is missing simply because of a lack of time.
+
+                \todo[inline]{Find a nice reference to explain the ambiguity check better, check `lack of time' is okay phrasing.}
 
             }
             \item
@@ -539,17 +528,15 @@ descriptions below.
             (\\g -> const (g True) (g 1)) (\x -> x)     -- This fails to typecheck
             \end{haskellfigure}
 
-            \todo[inline]{Originally I had a big worked example here, but after refactoring the above I don't know if it's needed: depends on whether reading the above makes sense or whether a continuous worked example would make it clearer.}
-
             A tricky part of the typechecking process is dealing with typeclasses, as dependency order isn't
-            semantically accurate for typeclass instance declarations: the problem is detailed in
+            semantically accurate for typeclass instance declarations: the problem is detailed in section
             \ref{sec:dependencies-syntactic-semantic}. To handle the potential issues, such declarations are processed
             in a lazy manner. If a declaration requires an instance of a typeclass in order to typecheck then that
             typeclass is typechecked immediately, and all remaining instance declarations are processed after
             non-instance declarations have been processed.
 
-            An improvement to the current approach would be to implement the OutsideIn(X) framework given in
-            \cite{OutsideIn}. This framework can work with Hindley-Milner type inference to handle more complex
+            An improvement to the current approach would be to implement the OutsideIn(X) framework given by Vytiniotis
+            et al \cite{OutsideIn}. This framework can work with Hindley-Milner type inference to handle more complex
             constraints than the current implementation, allowing support for GADTs and type families and handling type
             classes more flexibly than the current implementation.
 
@@ -734,13 +721,14 @@ descriptions below.
 
             My initial implementation worked correctly for single-pattern uses, such as the \haskell{let} example above,
             but didn't support multiple parallel patterns as used in \haskell{case} expressions and function
-            definitions. The current implementation is now based off the approach given in Chapter 5 of
-            \cite{ImplFunLang}, which is a more general version of my initial algorithm.
+            definitions. The current implementation is now based off the approach given in Chapter 5 of `The
+            Implementation of Functional Programming Languages' \cite{ImplFunLang}, which is a more general version of
+            my initial algorithm.
 
-            \todo[inline]{Feel like this needs a little bit more. Probably give a very brief overview, explain that everything's converted into case statements in the end, etc.}
+            \todo[inline]{Explain more detailed differences between mine and theirs}
 
-            Finally, note that in Haskell a pattern will eventually match against a data constructor, a literal, or
-            anything (with the wildcard pattern \haskell{_}). However, in the grammar for ILA's
+            Finally, note that in Haskell a pattern will eventually match against either a data constructor, a literal
+            value, or `anything' (with the wildcard pattern \haskell{_}). However, in the grammar for ILA's
             \haskell{AltConstructor}, there's no constructor corresponding to literals. This is due to \haskell{case}
             expressions generally only making sense for data constructors, where there are a finite number of
             constructors to check a value against for a given datatype. On the other hand, literals normally have a

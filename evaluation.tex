@@ -22,8 +22,9 @@
 \section{Language Features}
 {
 
-    The planned subset of Haskell was functions, arithmetic, booleans, lists, simple typeclasses, and laziness. The
-    following program demonstrates various use-cases of all of these features:
+    The planned subset of Haskell encompassed functions, arithmetic, booleans, lists, simple typeclasses, and laziness.
+    The following program is compilable using my compiler (it is even included as a test), and demonstrates various
+    use-cases of all of these features:
 
     \begin{haskellfigure}
     -- foldl :: (b -> a -> b) -> b -> [a] -> b
@@ -45,7 +46,7 @@
     valid = sum (take 10 ones :: [Int]) == 10
     \end{haskellfigure}
 
-    Successfuly implemented extensions include support for user-defined datatypes, user-defined typeclasses and
+    Successfully implemented extensions include support for user-defined datatypes, user-defined typeclasses and
     instances, monads, and some syntactic features like operator sections and support for point-free notation: these can
     be demonstrated by the following program:
 
@@ -80,8 +81,6 @@
     z = y >>= onlyEven -- Evaluates to [2,2]
     \end{haskellfigure}
 
-    \todo[inline]{Double triple check these programs work (add to tests) as it'd be really awkward if someone tries to test them and they don't...}
-
     Each simple feature name necessarily glosses over many smaller constituent features necessary for use. For example,
     the `lists' feature allows for lists to be created using either the plain constructor syntax
     (\haskell{1:(2:(3:[]))}) or syntactic sugar for lists (\haskell{[1,2,3]}), and matched using patterns (eg.\
@@ -95,14 +94,18 @@
     \subsubsection{Correctness}
     {
 
-        Correctness of the various stages of the compiler has been empirically tested using a large set of unit and
-        integration tests: these include tests of complete programs, such as those used for benchmarking.
+        Correctness of the various stages of the compiler has been empirically tested using a large set of unit,
+        integration, and regression tests: these include tests of complete programs, such as those used for
+        benchmarking.
         
         At the time of writing, there are 245\todo{Update} tests. These are run both on my development machine
         (described in \ref{sec:test-environment}), and on machines provided by Travis
         CI\footnote{\url{https://travis-ci.org/hnefatl/dissertation-project}} whenever a commit is pushed to my
         development GitHub repository. This ensures the compiler works in a clean, reproducible environment and not just
         on my development system.
+
+        Bugs found and fixed during development have at least one associated regression test to ensure that they cannot
+        reappear.
 
         As the compiler is developed using Haskell, some forms of compiler bugs that could affect the correctness of
         translation have been mitigated: type errors and bugs due to mutable state cannot exist within the compiler.
@@ -180,18 +183,54 @@
     \subsection{Compiler Performance}
     {
 
-        Figure \ref{fig:compiler-perf} presents the time taken to compile each benchmark program. 
+        Figure \ref{fig:compiler-perf} presents the minimum time taken to compile each benchmark program: my compiler is
+        faster than both Eta and Frege to compile all benchmarks.
         
         \begin{figure}[h]
             \centering
             \captionsetup{width=0.8\textwidth}
             \includegraphics[width=0.9\textwidth]{graphs/compiler_perf.pdf}
-            \caption{Minimum time taken to compile the benchmark program. Dark grey section for the times from my compiler indicates the time taken writing the compiled classes to a compressed Jar file.}
+            \caption{Minimum time taken to compile the benchmark program. The dark grey section for the times from my compiler is the time taken writing the compiled classes to a compressed jar file.}
             \label{fig:compiler-perf}
+        \end{figure}
+        
+        It's interesting that the compiler takes less time to process the input when performing optimisations than when
+        not. This appears to be due to a significant amount of the compilation time being spent in compressing and
+        writing the compiled classes into a jar file: the unreachable code elimination optimisation described in Section
+        \ref{sec:unreachable-elim} can massively reduce the amount of code that reaches code generation, which in turn
+        reduces the amount of bytecode that needs to be compressed and written to disk.
+
+    }
+    \subsection{Executable Size}
+    {
+
+        Figure \ref{fig:executable-size} displays the compiled size of each benchmark program after compilation by the
+        various compilers. All three compilers generate a fixed-size set of class files that implement the logic of the
+        Haskell program, have class files providing runtime support (for example, each compiler has an equivalent to the
+        \java{Function} class described in Section \ref{sec:heap-objects}), and usually have a class file for each
+        datatype defined in the Haskell program. This metric includes specifically the class files implementing the
+        logic from the Haskell code and the runtime files, but does not count the size of the implementation of
+        datatypes or other files. This combination was chosen because all the compilers generate class files for all
+        datatypes regardless of whether they're used by the program, and Frege and Eta implement many more datatypes
+        than my compiler's standard library provides: this causes the size of their executables to be primarily due to
+        datatype implementation, obscuring the size due to the program logic itself.
+
+        Also of note is that Eta and my compiler perform the Java equivalent of static linking, where the executable jar
+        contains both the program logic and all the runtime files required, so that it can execute portably on any
+        machine supporting Java. Frege performs the equivalent of dynamic linking, requiring the compiler's jar to be on
+        the Java classpath when running its output executables as the runtime files are all stored inside. This made
+        accurately measuring executable size slightly trickier.
+
+        \begin{figure}[h]
+            \centering
+            \captionsetup{width=0.8\textwidth}
+            \includegraphics[width=0.9\textwidth]{graphs/size.pdf}
+            \caption{Compiled size of each benchmark program. This size includes the runtime system and the bytecode corresponding to the actual program.}
+            \label{fig:executable-size}
         \end{figure}
 
     }
-
+    \todo[inline]{Evaluation of each optimisation}
 }
 \section{Schedule}
 {

@@ -921,7 +921,7 @@ descriptions below.
             (1 + 2) + 3     -- Not in WHNF
             \end{haskellfigure}
         }
-        \subsubsection{Heap Objects}
+        \subsubsection{Heap Objects}\label{sec:heap-objects}
         {
 
             Literals, datatype values and closures are all represented at runtime by values on the heap, as they are all
@@ -1490,10 +1490,10 @@ descriptions below.
             binding with references to the existing one. This is a rather unusual optimisation to perform but it has
             significantly positive effects on program size, and can reduce computation.
 
-            As the intermediate languages are mostly in ANF, there are a great deal of let-bindings. In particular,
-            simple expressions like \haskell{True && True} in Haskell are converted into \haskell{let v1 = True in let
-            v2 = True in (&&) v1 v2} in ILB. This is necessary in general in order to provide lazy evaluation, but in
-            simple cases like this it introduces obvious redundancy. Binding deduplication removes the redundancy by
+            As the intermediate languages are mostly in ANF, there are a great many let-bindings. In particular, simple
+            expressions like \haskell{True && True} in Haskell are converted into \haskell{let v1 = True in let v2 =
+            True in (&&) v1 v2} in ILB. This is necessary in general in order to provide lazy evaluation, but in simple
+            cases like this it introduces obvious redundancy. Binding deduplication removes the redundancy by
             transforming the ILB version into \haskell{let v1 = True in (&&) v1 v1}. This reduces code size and removes
             a heap allocation, and if the redundant expression had been more complex it would also have allowed for the
             value to only be computed once, instead of twice.
@@ -1501,9 +1501,24 @@ descriptions below.
             This optimisation is an ILB to ILB transformation like let-lifting, for similar reasons. In addition, this
             transformation is performed after let-lifting as it produces better results than before: after lifting
             bindings as high as possible there are more in-scope bindings at any program point, which increases the
-            potential for bindings to be removed by this pass.
+            potential for bindings to be removed by this pass. In the \haskell{True && True} example given above, we
+            would naturally converge to only having a single binding of \haskell{True} in the program, rather than
+            multiple, which saves memory (as all values are allocated on the heap) and time (the program doesn't need to
+            initialise a new thunk containing that simple value each time it's used).
 
             \todo[inline]{Name-drop `phase ordering' at some point to sound smart?}
+
+        }
+        \subsubsection{Unreachable Code Elimination}\label{sec:unreachable-elim}
+        {
+
+            The unreachable code elimination pass removes all code that cannot be reached on some execution path from
+            the entrypoint of the program, by performing a depth-first traversal of the syntax tree and recording all
+            variables used.
+
+            This optimisation pass is extremely effective as it can eliminate unused functions from the `standard
+            library' included with the compiler, described in Section \ref{sec:prelude}, ensuring that only code
+            necessary for the execution of the program is compiled.
 
         }
         \subsubsection{Code generation}
@@ -1516,6 +1531,12 @@ descriptions below.
             \todo[inline]{Not planning to write yet: would like to sneakily implement unused code elimination in the \textit{tons} of time I have available and write that up instead, as a `proper optimisation technique'.}
 
         }
+    }
+    \subsection{Prelude}\label{sec:prelude}
+    {
+
+        \todo[inline]{Brief description of how there's a standard library file and single input file, they're merged etc}
+
     }
 }
 

@@ -172,6 +172,11 @@
             \todo[inline]{Update to use min with error bars showing 25th+50th quartile or similar}
         \end{figure}
 
+        The inefficiency of programs output by my compiler seems to stem from my implementation of runtime closures, as
+        described in Section \ref{sec:closures}.
+
+        % Big TODO(kc506):
+
         % Why is mine slower. Ideally include a profiling plot or something.
 
         % Can conclude that my implementation of thunks is inefficient, compare to Frege/Eta's implementation. Think
@@ -230,7 +235,21 @@
         \end{figure}
 
     }
-    \todo[inline]{Evaluation of each optimisation}
+    \subsection{Impact of Optimisations}
+    {
+
+        \todo[inline]{Yeah this doesn't look good: check this is correct + try to find some way to explain?}
+
+        \begin{figure}[h]
+            \centering
+            \captionsetup{width=0.8\textwidth}
+            \includegraphics[width=0.9\textwidth]{graphs/perf_by_opt.pdf}
+            \caption{Runtime of the benchmarks after compilation with various optimisations: L stands for let-lifting, D for binding de-duplication, and U for unreachable code elimination.}
+            \label{fig:opt-perf}
+        \end{figure}
+        
+
+    }
 }
 \section{Schedule}
 {

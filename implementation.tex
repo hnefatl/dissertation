@@ -1535,7 +1535,17 @@ descriptions below.
     \subsection{Prelude}\label{sec:prelude}
     {
 
-        \todo[inline]{Brief description of how there's a standard library file and single input file, they're merged etc}
+        The Haskell Standard Library is named the Prelude, and consists of a number of builtin modules that provide
+        definitions of useful functions, datatypes, and typeclasses such as \haskell{map}, \haskell{Maybe}, and
+        \haskell{Monad}. My compiler includes a standard library, which includes a subset of the definitions from the
+        true Prelude.
+        
+        With GHC, these are provided as importable modules from the \monospace{base} package, which is an implicit
+        (opt-out) dependency of all packages. My compiler does not support modules or packages, instead using a single
+        file per program, so the approach taken is to simply concatenate the file containing the standard library
+        (\monospace{StdLib.hs}) with the input file: dependency analysis (described in Section
+        \ref{sec:dependency-analysis}) ensures that the definitions are compiled in a valid order, and unreachable code
+        elimination (Section \ref{sec:unreachable-elim}) removes uncessary definitions to prevent program bloat.
 
     }
 }

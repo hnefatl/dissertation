@@ -28,3 +28,7 @@
      let (x,y) = \dNumt1 dNumt2 -> (fromInteger dNumt1 1, fromInteger dNumt2 2) in x
 
   But now we're binding a function to a tuple...
+
+- Somewhere in evaluation/implementation on optimisations: mention more that I'd like to do. Strictness analysis,
+  inlining, specialisation (https://wiki.haskell.org/Inlining_and_Specialisation). Brief argument as to why they'd be
+  effective.

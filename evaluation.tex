@@ -46,6 +46,8 @@
     valid = sum (take 10 ones :: [Int]) == 10
     \end{haskellfigure}
 
+    \todo[inline]{Make a bigger deal out of the working bits? More demonstrations of laziness etc?}
+
     Successfully implemented extensions include support for user-defined datatypes, user-defined typeclasses and
     instances, monads, and some syntactic features like operator sections and support for point-free notation: these can
     be demonstrated by the following program:
@@ -109,7 +111,7 @@
 
         As the compiler is developed using Haskell, some forms of compiler bugs that could affect the correctness of
         translation have been mitigated: type errors and bugs due to mutable state cannot exist within the compiler.
-        
+
     }
 }
 \section{Performance}
@@ -172,17 +174,35 @@
             \todo[inline]{Update to use min with error bars showing 25th+50th quartile or similar}
         \end{figure}
 
-        The inefficiency of programs output by my compiler seems to stem from my implementation of runtime closures, as
-        described in Section \ref{sec:closures}.
+        The inefficiency of programs output by my compiler seems to stem primarily from my implementation of runtime
+        closures (described in Section \ref{sec:closures}). Figure \ref{fig:inner-time} shows that almost 40\% of a
+        program's execution is spent in the functions associated with creating and calling closures: \monospace{enter},
+        \monospace{addArgument}, and \monospace{clone}. A more efficient implementation should have most of the runtime
+        spent in one or more of the \monospace{Impl} functions (such as \monospace{_v19Impl}), which perform the actual
+        logic of an expression of the Haskell program, rather than the bottleneck being in the runtime system.
 
-        % Big TODO(kc506):
+        \begin{figure}[h]
+            \centering
+            \captionsetup{width=0.8\textwidth}
+            \includegraphics[width=0.9\textwidth]{graphs/perf_profile_ackermann.pdf}
+            \caption{A breakdown of the percentage of execution time spent in each Java function in the generated code (`inner time') for the \monospace{ackermann} benchmark. Functions with inner time of less than 3\% are grouped into a single wedge.}
+            \label{fig:inner-time}
+        \end{figure}
 
-        % Why is mine slower. Ideally include a profiling plot or something.
+        As described in the implementation chapter, my compiler uses objects of a single class to represent closures,
+        with objects of the class storing \java{Function} objects generated using the \monospace{invokedynamic}
+        instruction and Java 8's support for anonymous functions. This is different from the approaches taken by both
+        Eta and Frege, where closures are translated into anonymous classes that implement a Functional
+        Interface\footnote{\url{https://docs.oracle.com/javase/8/docs/api/java/util/function/package-summary.html}}
+        allowing objects of the classes to be invoked like anonymous methods.
 
-        % Can conclude that my implementation of thunks is inefficient, compare to Frege/Eta's implementation. Think
-        % they both use loads of anonymous classes for their implementations while mine avoids that: can frame it as `I
-        % tried a different approach and found it was less performant', not necessarily a bad thing as speed was never a
-        % focus, and make guesses (and call them hypotheses) as to why their version is better.
+        This design choice was deliberate: before implementing my compiler, it seemed like using a single class for all
+        functions would be more efficient than using a new class for each function, as the equivalent Java code is
+        significantly shorter. After implementation and having compared the two different approaches, using functional
+        interfaces with a new class for each function results in simpler code for the creation and evaluation of
+        closures, which I expect plays a large role in the performance difference.
+
+        \todo[inline]{The above hopefully conveys `I chose a different approach because I wanted to experiment, it's less efficient but I had fun anyway and have a decent idea as to why it's less efficient'.}
 
     }
     \subsection{Compiler Performance}
@@ -283,8 +303,5 @@
     semantics.
 
 }
-
-
-
 
 \end{document}

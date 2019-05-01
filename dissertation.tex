@@ -48,6 +48,13 @@
 
 \renewcommand{\baselinestretch}{1.1} % adjust line spacing to make more readable
 
+
+\definecolor{gitgreen}{HTML}{28A745}
+\definecolor{gitred}{HTML}{CB2431}
+\newcommand{\additions}[1]{\textcolor{gitgreen}{\monospace{#1++}}}
+\newcommand{\deletions}[1]{\textcolor{gitred}{\monospace{#1--}}}
+\newcommand{\gitstats}[2]{\additions{#1}, \deletions{#2}}
+
 \begin{document}
 
 \bibliographystyle{plain}
@@ -78,19 +85,19 @@ Robinson College \\[5mm]
 
 \pagestyle{headings}
 
-\chapter{Introduction}
+\chapter{Introduction}\label{sec:introduction}
 \subfile{introduction}
 
-\chapter{Preparation}
+\chapter{Preparation}\label{sec:preparation}
 \subfile{preparation}
 
-\chapter{Implementation}
+\chapter{Implementation}\label{sec:implementation}
 \subfile{implementation}
 
-\chapter{Evaluation}
+\chapter{Evaluation}\label{sec:evaluation}
 \subfile{evaluation}
 
-\chapter{Conclusion}
+\chapter{Conclusion}\label{sec:conclusion}
 \subfile{conclusion}
 
 

@@ -1,0 +1,84 @@
+\documentclass[dissertation.tex]{subfiles}
+
+\begin{document}
+
+Preparation mostly involved reading papers, articles, and compiler documentation to form a rough idea of how to
+implement each stage of the compiler. 
+
+% Probably outline the major areas looked into: type system, WHNF, ANF, lazy evaluation.
+
+% TODO(kc506): Explain the scheduling issues here
+
+\section{Testability}
+{
+
+    Pure functions are usually easier to unit test than impure functions as behaviour is only affected by the
+    parameters, independent of any global mutable state. I wrote the pipeline of the compiler using solely pure code,
+    only using impure code for reading the source file and writing the compiled files, which made testing each stage
+    reliable and strictly independent of the adjacent pipeline sections.
+
+    Regression tests were implemented for all major bugs discovered, and ensure that the compiler stages don't
+    reintroduce incorrect behaviour.
+
+    Finally, end-to-end tests ensure that the compiler successfully processes a given Haskell source file and that the
+    executable produced computes the correct result, treating the compiler as a black box. This extremely coarse testing
+    method was very effective for discovering the existence of bugs, which could then be tracked down using standard
+    debugging techniques and isolated using the finer-grained unit and regression tests.
+
+    \todo[inline]{kc506: check this doesn't repeat stuff from the evaluation chapter}
+
+}
+\section{Tools}
+{
+
+    I chose Haskell as my implementation language as it has a number of desirable features for large projects: purity
+    ensures that components of the project cannot interact in unexpected ways, and the static type system guarantees
+    that modifications are checked for a shallow (type-level) degree of correctness across the entire system.
+
+    The natural choice of compiler for Haskell is the industry-leading Glasgow Haskell Compiler (GHC), and the Stack
+    build system is also relatively uncontested for Haskell build tooling, ensuring reproducible builds through a strict
+    dependency versioning system.
+
+    Documentation has been written using Haddock, a tool that generates documentation from the code and comments: this
+    documentation is rebuilt on every successful build and provides an easily-navigable description of commented modules
+    and functions.
+
+    Git was used for version control, allowing me to develop features on distinct branches, use bisection to find the
+    commits which introduced bugs, and keep a remote repository of code on Github as a backup.
+
+    Continuous integration was performed using Travis CI, which ensures that tests are run on every pushed commit and
+    that builds are reproducible: the project can be built and run on different machines.
+
+    The benchmarking framework was written in Python 3, and plots generated using \monospace{matplotlib}.
+
+}
+\section{Software Development Model}
+{
+
+    I mainly used the waterfall development model, building each stage of the compiler sequentially and testing it both
+    in isolation and in sequence with the previous stages. The only stage which broke this model was type inference,
+    which required multiple refining iterations to properly implement.
+
+    This approach was effective for most stages as there was a well-defined set of unchanging requirements. When the
+    approach failed to work it was due to an incomplete set of requirements, so an iterative approach was more suitable
+    to introduce support for the new requirements.
+
+}
+\section{Starting Point}
+{
+
+    The compiler uses a number of open-source packages from the de-facto Haskell standard library, such as
+    \monospace{containers}, \monospace{text}, \monospace{mtl}, \dots. The full list is available in the
+    \monospace{packages.yaml} configuration file in the root of the code repository.
+
+    The \monospace{haskell-src} lexing/parsing library for Haskell 98 source code was used, although forked and modified
+    minorly (\gitstats{187}{68}). The bytecode assembly library \monospace{hs-java} was forked and significantly
+    modified and extended to meet the requirements of this project (\gitstats{1,772}{1,431}).
+
+    No new languages had to be learnt for this project: I was already familiar with Haskell, Python 3, and Java. I had
+    not worked with \monospace{matplotlib}, \monospace{haskell-src} or \monospace{hs-java} before, but I was familiar
+    with all other tools or libraries mentioned.
+
+}
+
+\end{document}

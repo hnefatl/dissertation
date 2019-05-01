@@ -261,7 +261,7 @@ descriptions below.
                     x + y = ...
                 \end{haskellfigure}
 
-                Here the multiple declarations of \haskell{+} don't conflict: this is a valid program. However, the
+                Here the multiple declarations of \haskell{(+)} don't conflict: this is a valid program. However, the
                 following program does have conflicting variables, as \haskell{x} is not a typeclass member and is not
                 declared inside an \haskell{instance} declaration:
 
@@ -631,151 +631,160 @@ descriptions below.
             features like GADTs, as they are not supported by this compiler. Haskell 98 has hundreds of node types in
             its
             AST\footnote{\url{https://hackage.haskell.org/package/haskell-src/docs/Language-Haskell-Syntax.html}\todo[inline]{Find
-            version-independent link}}, whereas ILA has far fewer: this makes it far easier to transform. Below is the
-            full definition of ILA:
+            version-independent link}}, whereas ILA has far fewer: this makes it far easier to transform.
 
-            \todo[inline]{Give BNF instead of Haskell ADTs?}
-            \begin{haskellfigure}
-            data Expr = Var VariableName Type
-                      | Con VariableName Type
-                      | Lit Literal Type
-                      | App Expr Expr
-                      | Lam VariableName Type Expr
-                      | Let VariableName Type Expr Expr
-                      | Case Expr [VariableName] [Alt Expr]
-                      | Type Type
+            \paragraph*{Definition}
+            {
 
-            data Literal = LiteralInt Integer
-                         | LiteralChar Char
+                \todo[inline]{Give BNF instead of Haskell ADTs?}
+                \begin{haskellfigure}
+                data Expr = Var VariableName Type
+                          | Con VariableName Type
+                          | Lit Literal Type
+                          | App Expr Expr
+                          | Lam VariableName Type Expr
+                          | Let VariableName Type Expr Expr
+                          | Case Expr [VariableName] [Alt Expr]
+                          | Type Type
 
-            data Alt a = Alt AltConstructor a
+                data Literal = LiteralInt Integer
+                             | LiteralChar Char
 
-            data AltConstructor = DataCon VariableName [VariableName]
-                                | Default
+                data Alt a = Alt AltConstructor a
 
-            data Binding a = NonRec VariableName a
-                           | Rec (Map VariableName a)
-            \end{haskellfigure}
+                data AltConstructor = DataCon VariableName [VariableName]
+                                    | Default
 
-            A Haskell program is lowered by this pass into a list of \haskell{Binding Expr}: a list of recursive or
-            non-recursive bindings of expressions to variables.
+                data Binding a = NonRec VariableName a
+                               | Rec (Map VariableName a)
+                \end{haskellfigure}
 
-            \todo[inline]{Use paragraph to split this into better titled chunks}
+                A Haskell program is lowered by this pass into a list of \haskell{Binding Expr}: a list of recursive or
+                non-recursive bindings of expressions to variables.
 
-            One notable feature of ILA is that it carries type information: leaf nodes such as \monospace{Var} are
-            tagged with a type. GHC's Core IL is fully explicitly typed under a variant of System F, which allows for
-            `core linting' passes in-between transformations to ensure they maintain type-correctness. The type
-            annotations on ILA are not sufficient for such complete typechecking, but do allow for some sanity checks
-            and are necessary for lower stages of the compiler such as code generation. 
+                One notable feature of ILA is that it carries type information: leaf nodes such as \monospace{Var} are
+                tagged with a type. This is inspired by GHC's Core IL, which is fully explicitly typed under a variant
+                of System F, allowing for `core linting' passes in-between transformations to ensure they maintain
+                type-correctness. The type annotations on ILA are not sufficient for such complete typechecking, but do
+                allow for some sanity checks and are necessary for lower stages of the compiler such as code generation.
 
-            ILA is still quite high-level, so many of the language constructs have similar semantics to their Haskell
-            counterparts. The main benefit in this lowering pass is to collapse redundant Haskell syntax into a smaller
-            grammar.
+                ILA is still quite high-level, so many of the language constructs have similar semantics to their
+                Haskell counterparts. The main benefit in this lowering pass is to collapse redundant Haskell syntax
+                (syntactic sugar) into a smaller grammar.
 
-            Most of these constructors have obvious usages, but some are more subtle: \monospace{Con} represents a data
-            constructor such as \haskell{True} or \haskell{Just}. \monospace{App} is application of expressions, which
-            covers both function applications and data constructor applications (eg.\ \monospace{App (Var "f" (Bool
-            #\(\rightarrow\)# Bool)) (Con "True" Bool)} and \monospace{App (Con "Just" (Int #\(\rightarrow\)# Maybe
-            Int)) (Var "x" Int)}).
-            \todo[inline]{Work out why spacing is weird here}
+                Most of these constructors have familiar usages, but some are more subtle: \monospace{Con} represents a
+                data constructor such as \haskell{True} or \haskell{Just}. \monospace{App} is application as expected,
+                but covers both function applications and data constructor applications (eg.\ \monospace{App (Con "Just"
+                (Int #\(\rightarrow\)# Maybe Int)) (Var "x" Int)}).
 
-            \monospace{Lam #\(x\ t\ e\)#} represents a lambda term like \(\lambda x : t.\;e\), and \monospace{Let #\(x\
-            t\ e_1\ e_2\)#} represents a term like \(\text{let } x:t = e_1 \text{ in } e_2\).
+                \monospace{Lam #\(x\ t\ e\)#} represents a lambda term like \(\lambda x : t.\;e\), and \monospace{Let
+                #\(x\ t\ e_1\ e_2\)#} represents a term like \(\text{let } x:t = e_1 \text{ in } e_2\).
 
-            \todo[inline]{Lam and Let are most easily explained as lambda terms, but App is most easily demonstrated with some code, and the switch between explanation styles is a bit jarring.}
+                \monospace{Case #\(e\ vs\ as\)#} represents a multi-way switch on the value of an expression \(e\) (the
+                `head' or `scrutinee'), matching against a number of possible matches (`alts') from the list \(as\),
+                where the evaluated value of \(e\) is bound to each of the variables in \(vs\). The additional binding
+                variables can be useful when the scrutinee expression is reused within some number of the alts.
+
+                \todo[inline]{\monospace{Type} isn't really used afaik, it's a leftover from when I was trying to do System F style types. Should see if I can remove it.}
             
-            \monospace{Case #\(e\ vs\ as\)#} represents a multi-way switch on the value of an expression \(e\) (the
-            `head' or `scrutinee'), matching against a number of possible matches (`alts') from the list \(as\), where
-            the evaluated value of \(e\) is bound to each of the variables in \(vs\). The additional binding variables
-            can be useful when the scrutinee expression is reused within some number of the alts.
+                The alts in a \monospace{Case} expression, of the form \monospace{Alt #\(c\ b\)#}, match the value of
+                evaluating the scrutinee against the data constructor \(c\), then evaluates the \(b\) from whichever alt
+                matched. \monospace{AltConstructor} represents the potential matches: either a data constructor with a
+                number of variables to be bound, or a `match-anything' default value.
 
-            \todo[inline]{\monospace{Type} isn't really used afaik, it's a leftover from when I was trying to do System F style types. Should see if I can remove it.}
+            }
+            \paragraph*{Pattern Matching}
+            {
+
+                Many syntax features in Haskell are just syntactic sugar, and are simple to desugar (list literals like
+                \haskell{[1, 2]} are desugared to \haskell{1:(2:[])}). Others are slightly more verbose, such as converting \haskell{if x then y else z} expressions into \haskell{case x of { True -> y ; False -> z }}
+                (\haskell{Bool}is just defined as an ADT in Haskell, there's no special language support for it).
+
+                Other language features are non-trivial to lower, such as the rich syntax Haskell uses for pattern
+                matching. An example pattern match could be \haskell{Just x@(y:z) = Just [1, 2]}, binding \haskell{x =
+                [1, 2]}, \haskell{y = 1}, and \haskell{z = [2]}. Multiple pattern matches can also be matched in
+                parallel, as in function definitions:
+
+                \begin{haskellfigure}
+                f (x, Just y) = x + y
+                f (x, Nothing) = x
+                \end{haskellfigure}
+
+                Additionally, pattern matches can occur in a number of places: pattern-binding declarations such as
+                \haskell{let (x, y) = z in ...}, functions definitions like the example above, lambda expressions, and
+                \haskell{case} expressions (\haskell{case Just 1 of { Nothing -> ... ; Just x -> ... }}). The
+                heterogeneity of use sites demands a flexible approach to translating pattern matches that can be reused
+                for each instance.
+
+                My initial implementation worked correctly for `horizontal' patterns where there are a number of
+                sequential patterns on independent variables, such as in \haskell{f (x, y) (Just z) = z}, but didn't
+                support multiple disjoint patterns `vertically', such as:
+
+                \begin{haskellfigure}
+                f Nothing = 0
+                f (Just x) = x
+                \end{haskellfigure}
             
-            The alts in a \monospace{Case} expression, of the form \monospace{Alt #\(c\ b\)#}, match the value of
-            evaluating the scrutinee against the data constructor \(c\), then evaluates the \(b\) from whichever alt
-            matched. \monospace{AltConstructor} represents the potential matches: either a data constructor with a
-            number of variables to be bound, or a `match-anything' default value.
+                The implementation is somewhat fiddly, so a simplified declarative version is presented below as a
+                function translating terms from the Haskell grammar (either patterns or variables) to terms of ILA. It
+                demonstrates the translation of a few of the more interesting Haskell patterns. Syntactic terms of ILA
+                are presented in monospaced font and meta-variables used to represent Haskell terms are given in script
+                font:
 
+                \begin{alignat*}{2}
+                \text{translate} & (v:vs, v':ps, b) && =\; \text{translate} (vs, ps, b) [v/v'] \\
+                \text{translate} & (v:vs, (\text{con }ps'):ps, b) && =\; \texttt{case } v \texttt{ of \{ }\text{con
+                }vs'\texttt{ -> } \text{translate} (vs' \doubleplus vs, ps' \doubleplus ps, b) \texttt{ \}} \\
+                & && \hspace{1.5cm}\textit{where } vs' \textit{ are fresh variables} \\
+                \text{translate} & (v:vs, (w \texttt{ @ } z):ps, b) && =\; \text{translate} (v:vs, z:ps, b) [v/w] \\
+                \text{translate} & ([], [], b) && =\; b
+                \end{alignat*}
 
-            Many syntax features in Haskell are just syntactic sugar, and are simple to desugar (list literals like
-            \haskell{[1, 2]} are desugared to \haskell{1:2:[]}). Others are slightly more involved, such as converting
-            \haskell{if x then y else z} expressions into \haskell{case x of { True -> y ; False -> z }}
-            (\haskell{Bool}is just defined as an ADT in Haskell, there's no special language support for it).
-
-            % Begin pattern matching spiel
-            Other language features are non-trivial to lower, such as the rich syntax Haskell uses for pattern matching.
-            An example pattern match could be \haskell{Just x@(y:z) = Just [1, 2]}, binding \haskell{x = [1, 2]},
-            \haskell{y = 1}, and \haskell{z = [2]}. Multiple pattern matches can also be matched in parallel, as in
-            function definitions:
-
-            \begin{haskellfigure}
-            f (x, Just y) = x + y
-            f (x, Nothing) = x
-            \end{haskellfigure}
-
-            Additionally, pattern matches can occur in a number of places: pattern-binding declarations such as
-            \haskell{let (x, y) = z in ...}, functions definitions like the example above, lambda expressions, and
-            \haskell{case} expressions (\haskell{case Just 1 of { Nothing -> ... ; Just x -> ... }}). The heterogeneity
-            of use sites demands a flexible approach to translating pattern matches that can be reused for each
-            instance.
-
-            % TODO(kc506): This really needs more separation. This should be sectioned under "Pattern matching
-            % algorithm" or something.
-
-            My initial implementation worked correctly for single-pattern uses, such as the \haskell{let} example above,
-            but didn't support multiple parallel patterns as used in \haskell{case} expressions and function definitions
-            such as in \haskell{f} above.
+                In \(\text{translate}(vs,ps,b)\), \(vs\) is a stack of Haskell variables, \(ps\) is a stack of Haskell
+                patterns to match the variables against, and \(b\) is a Haskell expression for the right-hand-side of
+                the pattern match. The result is a recursively constructed ILA term that decomposes the variables in
+                \(vs\) using the patterns in \(ps\). For example, the expression \haskell{case x of { y@(Just z) -> (y,
+                z) }} would be translated as:
             
-            An idealised declarative version of the implementation is presented below as a function operating on terms
-            of ILA. It demonstrates the translation of a few of the possible patterns. Syntactic terms of ILA are
-            presented in monospaced font and meta-variables used to represent ILA terms are given in script font:
+                \begin{flalign*}
+                             & \text{translate}([\texttt{x}], [\texttt{y@(Just z)}], \texttt{(y, z)}) \\
+                \rightarrow\;& \text{translate}([\texttt{x}], [\texttt{Just z}], \texttt{(y, z)}) [\texttt{x}/\texttt{y}] \\
+                \rightarrow\;& (\texttt{case x of \{ Just u -> }\text{translate}([\texttt{u}], [\texttt{z}], \texttt{(y, z)})
+                \texttt{ \}}) [\texttt{x}/\texttt{y}] \\
+                \rightarrow\;& (\texttt{case x of \{ Just u -> }\text{translate}([], [], \texttt{(y, z)})
+                [\texttt{u}/\texttt{z}] \texttt{ \}}) [\texttt{x}/\texttt{y}] \\
+                \rightarrow\;& (\texttt{case x of \{ Just u -> (y, z)} [\texttt{u}/\texttt{z}] \texttt{ \}}) [\texttt{x}/\texttt{y}] \\
+                \rightarrow\;& \texttt{case x of \{ Just u -> (x, u) \}} \\
+                \end{flalign*}
 
-            \begin{alignat*}{2}
-            \text{translate} & (v:vs, v':ps, b) && =\; \text{translate} (vs, ps, b) [v/v'] \\
-            \text{translate} & (v:vs, (\text{con }ps'):ps, b) && =\; \texttt{case } v \texttt{ of \{ }\text{con
-            }vs'\texttt{ -> } \text{translate} (vs' \doubleplus vs, ps' \doubleplus ps, b) \texttt{ \}} \\
-            & && \hspace{1.5cm}\textit{where } vs' \textit{ are fresh variables} \\
-            \text{translate} & (v:vs, (w \texttt{ @ } z):ps, b) && =\; \text{translate} (v:vs, z:ps, b) [v/w] \\
-            \text{translate} & ([], [], b) && =\; b
-            \end{alignat*}
+                However, as mentioned earlier, this implementation only worked for `horizontal' patterns. The current
+                implementation is now based off the approach given in Chapter 5 of `The Implementation of Functional
+                Programming Languages' \cite{ImplFunLang}, which is a more general version of my approach: the stack of
+                patterns and the single body is replaced by a stack of `rows', each of which is a stack of patterns
+                along with a body representing the right-hand-side of the pattern match. The head patterns from each row
+                are grouped into data constructors, variables or literals, and the recursion occurs on each group.
 
-            In \(\text{translate}(vs,ps,b)\), \(vs\) is a stack of Haskell variables, \(ps\) is a stack of Haskell
-            patterns to match the variables against, and \(b\) is a Haskell expression for the right-hand-side of the
-            pattern match. For example, the expression \haskell{case x of { y@(Just z) -> (y, z) }} would be translated
-            as:
-            
-            \begin{flalign*}
-                         & \text{translate}([\texttt{x}], [\texttt{y@(Just z)}], \texttt{(y, z)}) \\
-            \rightarrow\;& \text{translate}([\texttt{x}], [\texttt{Just z}], \texttt{(y, z)}) [\texttt{x}/\texttt{y}] \\
-            \rightarrow\;& (\texttt{case x of \{ Just u -> }\text{translate}([\texttt{u}], [\texttt{z}], \texttt{(y, z)})
-            \texttt{ \}}) [\texttt{x}/\texttt{y}] \\
-            \rightarrow\;& (\texttt{case x of \{ Just u -> }\text{translate}([], [], \texttt{(y, z)})
-            [\texttt{u}/\texttt{z}] \texttt{ \}}) [\texttt{x}/\texttt{y}] \\
-            \rightarrow\;& (\texttt{case x of \{ Just u -> (y, z)} [\texttt{u}/\texttt{z}] \texttt{ \}}) [\texttt{x}/\texttt{y}] \\
-            \rightarrow\;& \texttt{case x of \{ Just u -> (x, u) \}} \\
-            \end{flalign*}
+            }
+            \paragraph*{Literals aren't patterns}
+            {
 
-            
-            The current implementation is now based off the approach given in Chapter 5 of
-            `The Implementation of Functional Programming Languages' \cite{ImplFunLang}, which is a generalisation of my
-            approach: a stack of variables to match against are processed along with a list of `rows', each of which
-            contains a stack of patterns and a right-hand-side expression.
+                In Haskell a pattern will eventually match against either a data constructor, a literal value, or
+                `anything' (with the wildcard pattern \haskell{_}). However, in the grammar for ILA's
+                \haskell{AltConstructor}, there's no constructor corresponding to literals.
+                
+                This is due to \monospace{case} expressions generally only making sense at a lower-level for data
+                constructors, where there are a finite number of constructors which can be `tagged' in some way in order
+                to test a value for which constructor it uses. On the other hand, literals normally have a cumbersomely
+                large (or infinite) number of `constructors' (one can imagine the \haskell{Int} type, which is bounded,
+                as being defined as \haskell{data Int = ... | -1 | 0 | 1 | ... }, but \haskell{Integer} cannot be
+                defined in this way as it is unbounded).
+                
+                As a result, pattern matches using literals are desugared into equality checks: the expression
+                \haskell{case x of { 0 -> y ; 1 -> z ; _ -> w }} is essentially translated into the Haskell expression
+                \haskell{if x == 0 then y else if x == 1 then z else w}, which is then lowered into ILA \haskell{case}
+                expressions matching \haskell{True} and \haskell{False} as described above.
 
-            \todo[inline]{Is this enough of an explanation of the difference?}
-
-            Finally, note that in Haskell a pattern will eventually match against either a data constructor, a literal
-            value, or `anything' (with the wildcard pattern \haskell{_}). However, in the grammar for ILA's
-            \haskell{AltConstructor}, there's no constructor corresponding to literals. This is due to \haskell{case}
-            expressions generally only making sense for data constructors, where there are a finite number of
-            constructors to check a value against for a given datatype. On the other hand, literals normally have a
-            cumbersomely large (or infinite) number of `constructors' (one can imagine the \haskell{Int} type, which is
-            bounded, as being defined as \haskell{data Int = ... | -1 | 0 | 1 | ... }, but \haskell{Integer} cannot be
-            defined in this way as it is unbounded). As a result, literals are `pattern matched' by using equality
-            checks from the \haskell{Eq} typeclass: the expression \haskell{case x of { 0 -> y ; 1 -> z ; _ -> w }} is
-            essentially translated to \haskell{if x == 0 then y else if x == 1 then z else w}, which is then lowered
-            into \haskell{case} expressions match on \haskell{True} and \haskell{False} as described above.
-            % End pattern matching spiel
-
+            }
         }
         \subsubsection{Intermediate Language A - Administrative Normal Form}
         {

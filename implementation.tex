@@ -463,12 +463,12 @@ descriptions below.
                 
                 Some expressions will generate constraints on type variables: using an overloaded function like
                 \haskell{(+)} will first require instantiating the polymorphic type to an overloaded type
-                (\(\forall\alpha.\;\text{Num}\alpha\Rightarrow\alpha\rightarrow\alpha\rightarrow\alpha\) to
-                \(\text{Num}\beta\Rightarrow\beta\rightarrow\beta\rightarrow\beta\), where \(\beta\) is a fresh unique
-                type variable), then moving the constraints from the type to the set of constraints built up while
-                traversing this declaration to get just \(\beta\rightarrow\beta\rightarrow\beta\). This is the ground
-                type that's unified with the type variable used to tag the use of \haskell{(+)}, and the constraint is
-                stored for use after finishing traversing the declaration.
+                (\(\forall\alpha.\;\text{Num }\alpha\Rightarrow\alpha\rightarrow\alpha\rightarrow\alpha\) to \(\text{Num
+                }\beta\Rightarrow\beta\rightarrow\beta\rightarrow\beta\), where \(\beta\) is a fresh unique type
+                variable), then moving the constraints from the type to the set of constraints built up while traversing
+                this declaration to get just \(\beta\rightarrow\beta\rightarrow\beta\). This is the ground type that's
+                unified with the type variable used to tag the use of \haskell{(+)}, and the constraint is stored for
+                use after finishing traversing the declaration.
 
                 After a pattern binding declaration has been fully traversed, types are generated for all the variable
                 names bound by the patterns. This involves adding explicit quantifiers and constraints to the simple
@@ -476,14 +476,14 @@ descriptions below.
                 variables in the simple type are added as universally quantified variables, and any constraints
                 involving type variables that are free in the simple type are added as the qualifiers to the type.
 
-                There is a type-system correctness check called the `ambiguity check', which ensures that types
-                variables involved in overloaded types always converge to a ground type such as \haskell{Int}. This
-                prevents programs which have ambiguous semantics (multiple possible runtime behaviours) from being
-                reported as valid. My compiler does not implement this check, which allows some programs to be accepted
-                by the compiler but crash at runtime (such cases can often be fixed by adding explicit type signatures).
-                This feature is missing simply because of a lack of time.
-
-                \todo[inline]{Find a nice reference to explain the ambiguity check better, check `lack of time' is okay phrasing.}
+                There is a type-system correctness check called the `ambiguity check', which ensures that for any
+                variable with overloaded type, at its use-site the type variables are either resolved to a ground type
+                such as \haskell{Int} or are exposed in the type of the expression they're being used in. This prevents
+                programs which have ambiguous semantics (multiple possible runtime behaviours) from being reported as
+                valid (this issue, along with an approach for fixing it called defaulting, is described in section
+                11.5.1 of \cite{THIH}). My compiler does not implement this check, which allows some programs to be
+                accepted by the compiler which crash at runtime (such cases can often be fixed by adding explicit type
+                signatures). This feature is missing simply because of a lack of time.
 
             }
             \item
@@ -705,8 +705,8 @@ descriptions below.
             % Begin pattern matching spiel
             Other language features are non-trivial to lower, such as the rich syntax Haskell uses for pattern matching.
             An example pattern match could be \haskell{Just x@(y:z) = Just [1, 2]}, binding \haskell{x = [1, 2]},
-            \haskell{y = 1}, and \haskell{z = [2]}. Multiple pattern matches can also be related, as in function
-            definitions:
+            \haskell{y = 1}, and \haskell{z = [2]}. Multiple pattern matches can also be matched in parallel, as in
+            function definitions:
 
             \begin{haskellfigure}
             f (x, Just y) = x + y
@@ -719,13 +719,49 @@ descriptions below.
             of use sites demands a flexible approach to translating pattern matches that can be reused for each
             instance.
 
-            My initial implementation worked correctly for single-pattern uses, such as the \haskell{let} example above,
-            but didn't support multiple parallel patterns as used in \haskell{case} expressions and function
-            definitions. The current implementation is now based off the approach given in Chapter 5 of `The
-            Implementation of Functional Programming Languages' \cite{ImplFunLang}, which is a more general version of
-            my initial algorithm.
+            % TODO(kc506): This really needs more separation. This should be sectioned under "Pattern matching
+            % algorithm" or something.
 
-            \todo[inline]{Explain more detailed differences between mine and theirs}
+            My initial implementation worked correctly for single-pattern uses, such as the \haskell{let} example above,
+            but didn't support multiple parallel patterns as used in \haskell{case} expressions and function definitions
+            such as in \haskell{f} above.
+            
+            An idealised declarative version of the implementation is presented below as a function operating on terms
+            of ILA. It demonstrates the translation of a few of the possible patterns. Syntactic terms of ILA are
+            presented in monospaced font and meta-variables used to represent ILA terms are given in script font:
+
+            \begin{alignat*}{2}
+            \text{translate} & (v:vs, v':ps, b) && =\; \text{translate} (vs, ps, b) [v/v'] \\
+            \text{translate} & (v:vs, (\text{con }ps'):ps, b) && =\; \texttt{case } v \texttt{ of \{ }\text{con
+            }vs'\texttt{ -> } \text{translate} (vs' \doubleplus vs, ps' \doubleplus ps, b) \texttt{ \}} \\
+            & && \hspace{1.5cm}\textit{where } vs' \textit{ are fresh variables} \\
+            \text{translate} & (v:vs, (w \texttt{ @ } z):ps, b) && =\; \text{translate} (v:vs, z:ps, b) [v/w] \\
+            \text{translate} & ([], [], b) && =\; b
+            \end{alignat*}
+
+            In \(\text{translate}(vs,ps,b)\), \(vs\) is a stack of Haskell variables, \(ps\) is a stack of Haskell
+            patterns to match the variables against, and \(b\) is a Haskell expression for the right-hand-side of the
+            pattern match. For example, the expression \haskell{case x of { y@(Just z) -> (y, z) }} would be translated
+            as:
+            
+            \begin{flalign*}
+                         & \text{translate}([\texttt{x}], [\texttt{y@(Just z)}], \texttt{(y, z)}) \\
+            \rightarrow\;& \text{translate}([\texttt{x}], [\texttt{Just z}], \texttt{(y, z)}) [\texttt{x}/\texttt{y}] \\
+            \rightarrow\;& (\texttt{case x of \{ Just u -> }\text{translate}([\texttt{u}], [\texttt{z}], \texttt{(y, z)})
+            \texttt{ \}}) [\texttt{x}/\texttt{y}] \\
+            \rightarrow\;& (\texttt{case x of \{ Just u -> }\text{translate}([], [], \texttt{(y, z)})
+            [\texttt{u}/\texttt{z}] \texttt{ \}}) [\texttt{x}/\texttt{y}] \\
+            \rightarrow\;& (\texttt{case x of \{ Just u -> (y, z)} [\texttt{u}/\texttt{z}] \texttt{ \}}) [\texttt{x}/\texttt{y}] \\
+            \rightarrow\;& \texttt{case x of \{ Just u -> (x, u) \}} \\
+            \end{flalign*}
+
+            
+            The current implementation is now based off the approach given in Chapter 5 of
+            `The Implementation of Functional Programming Languages' \cite{ImplFunLang}, which is a generalisation of my
+            approach: a stack of variables to match against are processed along with a list of `rows', each of which
+            contains a stack of patterns and a right-hand-side expression.
+
+            \todo[inline]{Is this enough of an explanation of the difference?}
 
             Finally, note that in Haskell a pattern will eventually match against either a data constructor, a literal
             value, or `anything' (with the wildcard pattern \haskell{_}). However, in the grammar for ILA's

@@ -12,6 +12,7 @@
 \usepackage{makecell}
 \usepackage{titlesec}
 \usepackage{todonotes}
+\usepackage{parskip}
 \usepackage{caption}
 \usepackage{pdfpages}
 \usepackage{subfiles}
@@ -37,7 +38,7 @@
 {0pt}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
 
 % Don't indent paragraphs
-\setlength{\parindent}{0pt}
+%\setlength{\parindent}{0pt}
 
 \newmintinline[monospace]{text}{escapeinside=\#\#, mathescape}
 \newmintinline[haskell]{haskell}{escapeinside=\#\#, mathescape}
@@ -54,6 +55,8 @@
 \newcommand{\additions}[1]{\textcolor{gitgreen}{\monospace{#1++}}}
 \newcommand{\deletions}[1]{\textcolor{gitred}{\monospace{#1--}}}
 \newcommand{\gitstats}[2]{\additions{#1}, \deletions{#2}}
+
+\newcommand\doubleplus{+\kern-1.3ex+\kern0.8ex}
 
 \begin{document}
 

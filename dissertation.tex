@@ -12,7 +12,6 @@
 \usepackage{makecell}
 \usepackage{titlesec}
 \usepackage{todonotes}
-\usepackage{parskip}
 \usepackage{caption}
 \usepackage{pdfpages}
 \usepackage{subfiles}
@@ -38,7 +37,8 @@
 {0pt}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
 
 % Don't indent paragraphs
-%\setlength{\parindent}{0pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
 
 \newmintinline[monospace]{text}{escapeinside=\#\#, mathescape}
 \newmintinline[haskell]{haskell}{escapeinside=\#\#, mathescape}

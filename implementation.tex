@@ -1547,19 +1547,18 @@ j       stored in associative containers.
 \section{Repository Structure}
 {
     
-    The main code repository for this project is available at \url{https://github.com/hnefatl/dissertation-project}. The
-    important directories in the top-level of the repository are:
+    The main code repository for this project is available at \url{https://github.com/hnefatl/dissertation-project} --
+    all of the code in this repository was written from scratch. The important directories in the top-level of the
+    repository are:
 
-    \begin{monospacefigure}
-    .
-    ├── app
-    ├── benchmarks
-    ├── src
-    ├── src
-    └── test
-    \end{monospacefigure}
-
-    All of the code in this repository was written from scratch.
+    \directorystructure{
+    [./
+        [app]
+        [benchmarks]
+        [src]
+        [test]
+    ]
+    }
     
     \subsection{\monospace{compiler}}
     {
@@ -1571,24 +1570,29 @@ j       stored in associative containers.
         the major files. The \monospace{Compiler.hs} source file does not correspond to a single pipeline stage, but
         contains functions that string all of the other pipeline stages together.
 
-        \begin{monospacefigure}
-        src/
-        ├── Compiler.hs
-        ├── Backend
-        │   ├── CodeGen.hs
-        │   ├── Deoverload.hs
-        │   ├── ILAANF.hs
-        │   ├── ILA.hs
-        │   └── ILB.hs
-        ├── Optimisations
-        │   ├── BindingDedupe.hs
-        │   ├── LetLifting.hs
-        │   └── UnreachableCodeElim.hs
-        ├── Preprocessor
-        │   └── Renamer.hs
-        └── Typechecker
-            └── Typechecker.hs
-        \end{monospacefigure}
+        \directorystructure{
+        [src/
+            [Compiler.hs]
+            [Backend/
+                [CodeGen.hs]
+                [Deoverload.hs]
+                [ILAANF.hs]
+                [ILA.hs]
+                [ILB.hs]
+            ]
+            [Optimisations/
+                [BindingDedupe.hs]
+                [LetLifting.hs]
+                [UnreachableCodeElim.hs]
+            ]
+            [Preprocessor/
+                [Renamer.hs]
+            ]
+            [Typechecker/
+                [Typechecker.hs]
+            ]
+        ]
+        }
 
         This library contains 6344 lines of Haskell source code.
 
@@ -1599,10 +1603,11 @@ j       stored in associative containers.
         The compiler executable is imaginatively named \haskell{compiler-exe}, and resides in the \monospace{app}
         directory:
 
-        \begin{monospacefigure}
-        app
-        └── Main.hs
-        \end{monospacefigure}
+        \directorystructure{
+        [app/
+            [Main.hs]
+        ]
+        }
 
         This single 97-line file contains the application entry point and code handling command-line arguments, before
         passing control over to the \monospace{compiler} library for the actual compilation process.
@@ -1614,21 +1619,25 @@ j       stored in associative containers.
         Tests are contained in the \monospace{test} directory. The directory layout intentionally mimics the layout of
         the \monospace{src} directory, so the tests for each major compiler stage are stored in a similarly named path.
 
-        \begin{monospacefigure}
-        test/
-        ├── AlphaEqSpec.hs
-        ├── Backend
-        │   ├── DeoverloadSpec.hs
-        │   ├── ILAANFSpec.hs
-        │   └── ILASpec.hs
-        ├── Preprocessor
-        │   ├── DependencySpec.hs
-        │   └── RenamerSpec.hs
-        ├── Spec.hs
-        ├── Typechecker
-        │   └── TypecheckerSpec.hs
-        └── WholeProgram.hs
-        \end{monospacefigure}
+        \directorystructure{
+        [test/
+            [AlphaEqSpec.hs]
+            [Backend/
+                [DeoverloadSpec.hs]
+                [ILAANFSpec.hs]
+                [ILASpec.hs]
+            ]
+            [Preprocessor/
+                [DependencySpec.hs]
+                [RenamerSpec.hs]
+            ]
+            [Typechecker/
+                [TypecheckerSpec.hs]
+            ]
+            [Spec.hs]
+            [WholeProgram.hs]
+        ]
+        }
 
         There are 1418 lines of Haskell source code for the tests.
 
@@ -1640,28 +1649,31 @@ j       stored in associative containers.
         primarily of Python 3 scripts for representing, compiling, and executing a variety of benchmark programs using a
         number of compilers, along with a script for plotting the data.
 
-        \begin{monospacefigure}
-        benchmarks/
-        ├── benchmark.py
-        ├── etabenchmark.py
-        ├── fregebenchmark.py
-        ├── fregec.jar
-        ├── javabenchmark.py
-        ├── jhaskellbenchmark.py
-        ├── jmhbenchmark.py
-        ├── Main_Template.java
-        ├── plot.py
-        ├── programs
-        │   ├── ackermann.eta
-        │   ├── ackermann.fr
-        │   ├── ackermann.hs
-        │   ├── factorial.eta
-        │   └── ...
-        ├── results
-        │   └── ...
-        ├── results.py
-        └── runbenchmarks.py
-        \end{monospacefigure}
+        \directorystructure{
+        [benchmarks/
+            [benchmark.py]
+            [etabenchmark.py]
+            [fregebenchmark.py]
+            [fregec.jar]
+            [javabenchmark.py]
+            [jhaskellbenchmark.py]
+            [jmhbenchmark.py]
+            [Main\_Template.java]
+            [plot.py]
+            [programs
+                [ackermann.eta]
+                [ackermann.fr]
+                [ackermann.hs]
+                [factorial.eta]
+                [...]
+            ]
+            [results
+                [...]
+            ]
+            [results.py]
+            [runbenchmarks.py]
+        ]
+        }
 
         The \monospace{*benchmark.py} files define classes of benchmark and the \monospace{runbenchmarks.py} file
         creates objects of those classes to represent the various benchmarks and executes them.
@@ -1683,22 +1695,26 @@ j       stored in associative containers.
 
         \todo[inline]{Find a place to reference the changes made, I feel like I've already duplicated this info once before.}
 
-        \begin{monospacefigure}
-        .
-        ├── JVM
-        │   ├── Assembler.hs
-        │   ├── Builder
-        │   │   ├── Instructions.hs
-        │   │   └── Monad.hs
-        │   ├── Builder.hs
-        │   ├── ClassFile.hs
-        │   ├── Common.hs
-        │   ├── Converter.hs
-        │   ├── Dump.hs
-        │   └── Exceptions.hs
-        └── Java
-            └── ...
-        \end{monospacefigure}
+        \directorystructure{
+        [./
+            [JVM/
+                [Assembler.hs]
+                [Builder/
+                    [Instructions.hs]
+                    [Monad.hs]
+                ]
+                [Builder.hs]
+                [ClassFile.hs]
+                [Common.hs]
+                [Converter.hs]
+                [Dump.hs]
+                [Exceptions.hs]
+            ]
+            [Java/
+                [...]
+            ]
+        ]
+        }
 
         \monospace{Assembler.hs} defines a representation of the JVB instruction set, \monospace{ClassFile.hs} defines a
         representation of Java Class files, and \monospace{Converter.hs} defines functions for converting the class file

@@ -15,6 +15,7 @@
 \usepackage{caption}
 \usepackage{pdfpages}
 \usepackage{subfiles}
+\usepackage{forest}
 \usepackage{titlesec}
 \usepackage[toc]{appendix}
 \usepackage{tikz}
@@ -50,6 +51,30 @@
 
 \renewcommand{\baselinestretch}{1.1} % adjust line spacing to make more readable
 
+\newcommand{\directorystructure}[1]{
+\begin{forest}
+    for tree={
+        font=\ttfamily,
+        grow'=0,
+        child anchor=west,
+        parent anchor=south,
+        anchor=west,
+        calign=first,
+        edge path={
+            \noexpand\path [draw, \forestoption{edge}]
+            (!u.south west) +(7.5pt,0) |- node[fill,inner sep=1.25pt] {} (.child anchor)\forestoption{edge label};
+        },
+        before typesetting nodes={
+            if n=1
+                {insert before={[,phantom]}}
+                {}
+        },
+        fit=band,
+        before computing xy={l=15pt},
+    }
+#1
+\end{forest}
+}
 
 \definecolor{gitgreen}{HTML}{28A745}
 \definecolor{gitred}{HTML}{CB2431}

@@ -98,7 +98,7 @@ descriptions below. A summary is given at the end of the chapter, along with rep
 
         Parsing data declarations without any constructors (eg.\ \haskell{data Int})\footnote{Declarations of this form
         are invalid in the original Haskell 1998 syntax, but valid in Haskell 2010: see
-        https://wiki.haskell.org/Empty\_type}. This is a valuable way of introducing built-in types.
+        https://wiki.haskell.org/Empty\_type}. This allows for a convenient way of introducing built-in types.
 
     }
     \item
@@ -213,10 +213,9 @@ j       stored in associative containers.
         The strongly connected components (SCCs) of the dependency graph correspond to sets of mutually recursive
         declarations, and the partial order between components gives us the order to typecheck each set. The compiler
         uses an existing Haskell library to compute the SCCs
-        (\texttt{containers}\footnote{\url{https://hackage.haskell.org/package/containers}}), which uses the [].
+        (\texttt{containers}\footnote{\url{https://hackage.haskell.org/package/containers}}), which uses the algorithm
+        presented by M. Sharir \cite{SCC}.
 
-        \todo[inline]{Add reference to Sharir `STRONG-CONNECTIVIT;Y ALGORITHM AND ITS APPLICATIONS IN DATA FLOW ANALYSIS'}
-        
         For example, from the dependency graph in Figure \ref{fig:dependency-graph} we know that: we need to typecheck
         \(d_3\), \(d_4\), and \(d_5\) together as they're contained within the same strongly-connected component so are
         mutually recursive; we have to typecheck \(d_2\) last, after both other components.
@@ -253,7 +252,9 @@ j       stored in associative containers.
 
         \begin{itemize}
         \item
-        {Typeclass member variables can be declared multiple times within the same scope. For example:
+        {
+            
+            Typeclass member variables can be declared multiple times within the same scope. For example:
             
             \begin{haskellfigure}
             class Num a where
@@ -435,7 +436,7 @@ j       stored in associative containers.
     During type inference, types are almost always polymorphic and often overloaded (\haskell{(==) :: forall
     #\(\alpha\)#. Eq #\(\alpha\)# => #\(\alpha\rightarrow\alpha\rightarrow\)# Bool}, \haskell{(+) :: forall
     #\(\alpha\)#. Num #\(\alpha\)# => #\(\alpha\rightarrow\alpha\rightarrow\alpha\)#}, \haskell{head :: [#\(\alpha\)#]
-    -> #\(\alpha\)#}, ...). After deoverloading (section \ref{sec:deoverloading}), types are never overloaded. This
+    -> #\(\alpha\)#}, ...). After deoverloading (Section \ref{sec:deoverloading}), types are never overloaded. This
     difference is enforced by using \haskell{QuantifiedType} and \haskell{QuantifiedSimpleType} respectively.
 
     \todo[inline]{This is mentioned here as it's a good place to imply that things are really complicated and the following explanation makes simplifying assumptions, but it repeats stuff from the lexing+parsing section.}
@@ -444,17 +445,17 @@ j       stored in associative containers.
     z@(Just w)) = (1, Just True)}, function definitions like \haskell{f x = x}, and even declarations which contain
     other declarations, such as class and instance declarations. In the following descriptions, `declaration' is assumed
     to refer to simple pattern binding declarations like \haskell{x = f y} unless otherwise mentioned: other declaration
-    types are either easy to extend these approaches to, don't play much role in typechecking, or \todo{are sufficiently
-    complicated that I don't want to talk about them?}
+    types are either easy to extend these approaches to, don't play much role in typechecking, or are sufficiently
+    complicated that they are omitted for brevity.
 
     \todo[inline]{Section giving overview of substitution and unification?}
 
     \subsection{Type Inference}
     {
 
-        The implementation is inspired by \cite{THIH} and uses similar rules as the Hindley-Milner (HM) type inference
-        algorithm presented in \cite{HM-rules}. There are three passes over the source AST, each of which traverses the
-        AST in dependency order as previously described in \ref{sec:dependency-analysis}.
+        The implementation is inspired by the approach given by Mark P. Jones in \cite{THIH} and uses similar rules as
+        the Hindley-Milner (HM) type inference algorithm. There are three passes over the source AST, each of which
+        traverses the AST in dependency order as previously described in Section \ref{sec:dependency-analysis}.
 
         \begin{enumerate}
         \item
@@ -482,10 +483,10 @@ j       stored in associative containers.
             with overloaded type, at its use-site the type variables are either resolved to a ground type such as
             \haskell{Int} or are exposed in the type of the expression they're being used in. This prevents programs
             which have ambiguous semantics (multiple possible runtime behaviours) from being reported as valid (this
-            issue, along with an approach for fixing it called defaulting, is described in section 11.5.1 of
-            \cite{THIH}). My compiler does not implement this check, which allows some programs to be accepted by the
-            compiler which crash at runtime (such cases can often be fixed by adding explicit type signatures). This
-            feature is missing simply because of a lack of time.
+            issue, along with an approach for fixing it called defaulting, is described in Section 11.5.1 of `Typing
+            Haskell in Haskell' \cite{THIH}). My compiler does not implement this check, which allows some programs to
+            be accepted by the compiler which crash at runtime (such cases can often be fixed by adding explicit type
+            signatures). This feature is missing simply because of a lack of time.
 
         }
         \item
@@ -531,7 +532,7 @@ j       stored in associative containers.
         \end{haskellfigure}
 
         A tricky part of the typechecking process is dealing with typeclasses, as dependency order isn't
-        semantically accurate for typeclass instance declarations: the problem is detailed in section
+        semantically accurate for typeclass instance declarations: the problem is detailed in Section
         \ref{sec:dependencies-syntactic-semantic}. To handle the potential issues, such declarations are processed
         in a lazy manner. If a declaration requires an instance of a typeclass in order to typecheck then that
         typeclass is typechecked immediately, and all remaining instance declarations are processed after
@@ -799,10 +800,10 @@ j       stored in associative containers.
     \subsection{Intermediate Language A - Administrative Normal Form}
     {
 
-        Administrative Normal Form\cite{ANF} (ANF) is a style of writing programs in which all arguments to
-        functions must be trivial (a variable, literal, or other irreducible `value' like a lambda expression). ANF
-        is an alternative to Continuation Passing Style (CPS) as a style of intermediate language that is often seen
-        as being simpler to manipulate. The intermediate languages of GHC are transformed while in ANF.
+        Administrative Normal Form (presented in \cite{ANF}) (ANF) is a style of writing programs in which all arguments
+        to functions must be trivial (a variable, literal, or other irreducible `value' like a lambda expression). ANF
+        is an alternative to Continuation Passing Style (CPS) as a style of intermediate language that is often seen as
+        being simpler to manipulate. The intermediate languages of GHC are transformed while in ANF.
 
         This compiler uses ANF as it lends itself well to conceptualising lazy evaluation: as each complex
         expression is referred to through a variable, if the expression is evaluated by one computation then all
@@ -1432,9 +1433,9 @@ j       stored in associative containers.
         \end{haskellfigure}
 
         A hook is then added to the compiler that generates functions named \monospace{_makeprimNumIntAdd} and
-        \monospace{_primNumIntAddImpl}, as described in \ref{sec:closures}. The implementation of
+        \monospace{_primNumIntAddImpl}, as described in Section \ref{sec:closures}. The implementation of
         \monospace{_primNumIntAddImpl} is provided in the hook definition, and simply forwards its arguments to the
-        \java{_Int::add} function shown in \ref{sec:literals}. The functions generated by the hook are, at the
+        \java{_Int::add} function shown in Section \ref{sec:literals}. The functions generated by the hook are, at the
         bytecode level, indistinguishable from functions generated by any other expression so can be called by any
         other function without issue.
 
@@ -1541,11 +1542,93 @@ j       stored in associative containers.
 \section{Summary}
 {
 
-    \todo[inline]{Write}
+    To summarise the key ideas in the implementation:
+
+    \begin{itemize}
+    \item Lexing and Parsing is handled by a lightly modified third-party library.
+    \item Variables and Type Variables in the source code are renamed to unique names to prevent naming conflicts.
+    \item
+    {
+
+        Dependency Analysis is necessary for determining the order in which to infer types for declarations, to ensure
+        that the types of mutually recursive functions are correct.
+
+    }
+    \item
+    {
+
+        Type inference is implemented similarly to the Hindley-Milner algorithm, but typeclasses introduce a number of
+        complications.
+        
+        Typeclasses provide a way to implement strongly-typed ad-hoc overloading, allowing for the types of overloaded
+        expressions to be known at compile time.
+
+    }
+    \item
+    {
+
+        After typechecking, types include typeclass `contexts', eg.\ \haskell{Eq a => a -> a -> Bool}. These are
+        implemented using dictionary passing, which introduces an extra parameter for each class constraint providing
+        the `implementation' of the typeclass for a type variable. This deoverloading process converts the context into
+        formal parameters eg.\ \haskell{Eq a -> a -> a -> Bool}.
+
+    }
+    \item
+    {
+        
+        Intermediate Language A's (ILA) primary design goal is to collapse the hundreds of types of syntax node in the
+        Haskell source AST into a significantly smaller core of less than 10 AST nodes. Type information is preserved
+        for use by lower stages and for sanity checks.
+
+    }
+    \item
+    {
+
+        ILA-Adminstrative Normal Form (ILAANF) is a trivial subset of ILA to help guide ILA into ANF, to simplify later
+        transformations.
+
+    }
+    \item
+    {
+
+        In Intermediate Language B (ILB), the only syntax node which represents evaluation of any kind is
+        \monospace{Case}, and the only node representing memory allocation is \monospace{Let}.
+
+    }
+    \item All Haskell values (literals, data values, functions) are represented as Java objects on the heap.
+    \item
+    {
+
+        Lazy evaluation is implemented by translating each Haskell expression into a function, in order to delay
+        evaluation until the function is called.
+
+    }
+    \item
+    {
+
+        `Evaluating' a Haskell expression means reducing it to Weak Head Normal Form, where the expression is either a
+        literal, fully/partially applied data constructor, or partially applied function. Arguments to functions or data
+        constructors need not have been evaluated.
+
+    }
+    \item
+    {
+
+        Three optimisations have been implemented: let-lifting raises let-bound variables to as high as possible within
+        their expression; binding deduplication removes duplicate bindings in the same scope, to `clean up' the
+        redundant bindings which can be introduced by let-lifting; unreachable code elimination removes all code that
+        can't be reached from the program entrypoint, to reduce program size.
+
+        All optimisations operate on ILB, as this is where they can have the greatest impact.
+
+    }
+    \end{itemize}
 
 }
 \section{Repository Structure}
 {
+    \todo[inline]{There's a loooot of whitespace here because of the tall directory layouts... I might have to just tweak spacing in the final draft}
+
     \begin{minipage}{0.7\textwidth}
     \vspace{-0.5cm}
     The main code repository for this project is available at \url{https://github.com/hnefatl/dissertation-project} --

@@ -101,7 +101,7 @@
         benchmarking.
         
         At the time of writing, there are 245\todo{Update} tests. These are run both on my development machine
-        (described in \ref{sec:test-environment}), and on machines provided by Travis
+        (described in Section \ref{sec:test-environment}), and on machines provided by Travis
         CI\footnote{\url{https://travis-ci.org/hnefatl/dissertation-project}} whenever a commit is pushed to my
         development GitHub repository. This ensures the compiler works in a clean, reproducible environment and not just
         on my development system.
@@ -142,10 +142,10 @@
     {
 
         All of the compilers being compared output JVB, so a natural choice of benchmarking framework was the Java
-        Microbenchmark Harness (JMH)\todo{cite}. This allows for accurate Java program benchmarking by handling JVM
-        warmup, disabling garbage collection, etc. There are downsides to the framework though, notably that it doesn't
-        record memory usage, and that it only appears to expose percentiles and histograms of the results through its
-        Java API, not the raw data.
+        Microbenchmark Harness (JMH)\footnote{\url{https://openjdk.java.net/projects/code-tools/jmh/}}. This allows for
+        accurate Java program benchmarking by handling JVM warmup, disabling garbage collection, etc. There are
+        downsides to the framework though, notably that it doesn't record memory usage, and that it only appears to
+        expose percentiles and histograms of the results through its Java API, not the raw data.
 
         To measure compiler performance, a more naïve approach was taken: the execution times of 50 sequential
         compilations were recorded for each compiler.

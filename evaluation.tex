@@ -158,6 +158,8 @@
     \subsection{Execution Speed}
     {
 
+        \todo[inline]{Might need to switch some of the plots to use a logarithmic y axis...}
+
         Figure \ref{fig:perf} demonstrates the runtime performance of the benchmark programs after compilation by the
         different compilers. It is evident that the performance of programs compiled by my compiler is significantly
         lower than those from Frege or Eta, but also that applying optimisations can produce a reasonable speedup.
@@ -229,6 +231,8 @@
     \subsection{Executable Size}
     {
 
+        \todo[inline]{Data for Eta here is outdated for all but \monospace{factorial}, it's quite a bit smaller but still larger than Frege and mine.}
+
         Figure \ref{fig:executable-size} displays the compiled size of each benchmark program after compilation by the
         various compilers. All three compilers generate a fixed-size set of class files that implement the logic of the
         Haskell program, have class files providing runtime support (for example, each compiler has an equivalent to the
@@ -246,7 +250,7 @@
         the Java classpath when running its output executables as the runtime files are all stored inside. This made
         accurately measuring executable size slightly trickier.
 
-        \begin{figure}[h]
+        \begin{figure}[H]
             \centering
             \captionsetup{width=0.8\textwidth}
             \includegraphics[width=0.9\textwidth]{graphs/size.pdf}
@@ -260,14 +264,13 @@
 
         \todo[inline]{Yeah this doesn't look good: check this is correct + work out why?}
 
-        \begin{figure}[h]
+        \begin{figure}[H]
             \centering
             \captionsetup{width=0.8\textwidth}
             \includegraphics[width=0.9\textwidth]{graphs/perf_by_opt.pdf}
             \caption{Runtime of the benchmarks after compilation with various optimisations: L stands for let-lifting, D for binding de-duplication, and U for unreachable code elimination.}
             \label{fig:opt-perf}
         \end{figure}
-        
 
     }
 }

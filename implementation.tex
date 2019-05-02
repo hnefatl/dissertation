@@ -1541,16 +1541,21 @@ j       stored in associative containers.
 \section{Summary}
 {
 
-
+    \todo[inline]{Write}
 
 }
 \section{Repository Structure}
 {
-    
+    \begin{minipage}{0.7\textwidth}
+    \vspace{-0.5cm}
     The main code repository for this project is available at \url{https://github.com/hnefatl/dissertation-project} --
     all of the code in this repository was written from scratch. The important directories in the top-level of the
     repository are:
-
+    \end{minipage}
+    \hspace{5mm}
+    \begin{minipage}{0.2\textwidth}
+    \vspace{0pt}
+    \footnotesize
     \directorystructure{
     [./
         [app]
@@ -1559,10 +1564,12 @@ j       stored in associative containers.
         [test]
     ]
     }
-    
+    \end{minipage}
+
     \subsection{\monospace{compiler}}
     {
-
+        \begin{minipage}{0.7\textwidth}
+        \vspace{-5cm}
         The vast majority of code written was in a library named \monospace{compiler}, which exposes an API for
         compiling Haskell programs -- the code for this library is within the \monospace{src} directory. Files
         corresponding to major stages in the compiler pipeline are shown in the directory tree below. A number of source
@@ -1570,6 +1577,12 @@ j       stored in associative containers.
         the major files. The \monospace{Compiler.hs} source file does not correspond to a single pipeline stage, but
         contains functions that string all of the other pipeline stages together.
 
+        This library contains 6344 lines of Haskell source code.
+        \end{minipage}
+        \hspace{5mm}
+        \begin{minipage}{0.2\textwidth}
+        \vspace{0pt}
+        \footnotesize
         \directorystructure{
         [src/
             [Compiler.hs]
@@ -1593,32 +1606,41 @@ j       stored in associative containers.
             ]
         ]
         }
-
-        This library contains 6344 lines of Haskell source code.
-
+        \end{minipage}
     }
     \subsection{\monospace{compiler-exe}}
     {
-
-        The compiler executable is imaginatively named \haskell{compiler-exe}, and resides in the \monospace{app}
-        directory:
-
-        \directorystructure{
+        \begin{minipage}{0.7\textwidth}
+        \vspace{0pt}
+        The compiler executable is imaginatively named \haskell{compiler-exe}, and the single 97-line source file
+        \monospace{Main.hs} resides in the \monospace{app} directory: it contains the application entry point and code
+        for handling command-line arguments, before passing control over to the \monospace{compiler} library for the
+        actual compilation process.
+        \end{minipage}
+        \hspace{5mm}
+        \begin{minipage}{0.2\textwidth}
+        \vspace{-1.5cm}
+        \footnotesize
+        \raisebox{-\height}{\directorystructure{
         [app/
             [Main.hs]
         ]
-        }
-
-        This single 97-line file contains the application entry point and code handling command-line arguments, before
-        passing control over to the \monospace{compiler} library for the actual compilation process.
-
+        }}
+        \end{minipage}
     }
     \subsection{Tests}
     {
-
+        \begin{minipage}{0.7\textwidth}
+        \vspace{-6.5cm}
         Tests are contained in the \monospace{test} directory. The directory layout intentionally mimics the layout of
         the \monospace{src} directory, so the tests for each major compiler stage are stored in a similarly named path.
 
+        There are 1418 lines of Haskell source code for the tests.
+        \end{minipage}
+        \hspace{5mm}
+        \begin{minipage}{0.2\textwidth}
+        \vspace{0pt}
+        \footnotesize
         \directorystructure{
         [test/
             [AlphaEqSpec.hs]
@@ -1638,17 +1660,28 @@ j       stored in associative containers.
             [WholeProgram.hs]
         ]
         }
-
-        There are 1418 lines of Haskell source code for the tests.
-
+        \end{minipage}
     }
     \subsection{Benchmarks}
     {
-
+        \begin{minipage}{0.7\textwidth}
+        \vspace{-6.5cm}
         The code for evaluating the performance of the compiler is in the \monospace{benchmarks} directory, and consists
         primarily of Python 3 scripts for representing, compiling, and executing a variety of benchmark programs using a
         number of compilers, along with a script for plotting the data.
 
+        The \monospace{...benchmark.py} files define classes of benchmark and the \monospace{runbenchmarks.py} file
+        creates objects of those classes to represent the various benchmarks and executes them.
+
+        The \monospace{programs} directory contains source files for the benchmarks, and the \monospace{results}
+        directory contains the data obtained from the benchmarks.
+
+        There are 821 lines of Python source code for the benchmarking framework.
+        \end{minipage}
+        \hspace{5mm}
+        \begin{minipage}{0.2\textwidth}
+        \vspace{0pt}
+        \footnotesize
         \directorystructure{
         [benchmarks/
             [benchmark.py]
@@ -1674,19 +1707,12 @@ j       stored in associative containers.
             [runbenchmarks.py]
         ]
         }
-
-        The \monospace{*benchmark.py} files define classes of benchmark and the \monospace{runbenchmarks.py} file
-        creates objects of those classes to represent the various benchmarks and executes them.
-
-        The \monospace{programs} directory contains source files for the benchmarks, and the \monospace{results}
-        directory contains the data obtained from the benchmarks.
-
-        There are 821 lines of Python source code for the benchmarking framework.
-
+        \end{minipage}
     }
     \subsection{\monospace{hs-java}}
     {
-
+        \begin{minipage}{0.7\textwidth}
+        \vspace{0pt}
         The \monospace{hs-java} library\footnote{\url{https://hackage.haskell.org/package/hs-java}} is a library
         developed by Ilya V. Portnov for generating Java Bytecode. During my project, I made a number of modifications
         to the library (described ????????), resulting in quite significant changes from the original. My fork of the
@@ -1695,6 +1721,19 @@ j       stored in associative containers.
 
         \todo[inline]{Find a place to reference the changes made, I feel like I've already duplicated this info once before.}
 
+        \monospace{Assembler.hs} defines a representation of the JVB instruction set, \monospace{ClassFile.hs} defines a
+        representation of Java Class files, and \monospace{Converter.hs} defines functions for converting the class file
+        representation to and from a raw byte representation. The files within the \monospace{Builder} directory define
+        a useful API for generating bytecode from Haskell using a monad named \haskell{GeneratorT}, and any other files
+        simply contain utility functions.
+
+        The files under the \monospace{Java} directory define convenience variables for use when generating bytecode
+        that refer to builtin Java classes such as \java{java.lang.Object}.
+        \end{minipage}
+        \hspace{5mm}
+        \begin{minipage}{0.2\textwidth}
+        \vspace{-2cm}
+        \footnotesize
         \directorystructure{
         [./
             [JVM/
@@ -1715,16 +1754,7 @@ j       stored in associative containers.
             ]
         ]
         }
-
-        \monospace{Assembler.hs} defines a representation of the JVB instruction set, \monospace{ClassFile.hs} defines a
-        representation of Java Class files, and \monospace{Converter.hs} defines functions for converting the class file
-        representation to and from a raw byte representation. The files within the \monospace{Builder} directory define
-        a useful API for generating bytecode from Haskell using a monad named \haskell{GeneratorT}, and any other files
-        simply contain utility functions.
-
-        The files under the \monospace{Java} directory define convenience variables for use when generating bytecode
-        that refer to builtin Java classes such as \java{java.lang.Object}.
-
+        \end{minipage}
     }
 }
 

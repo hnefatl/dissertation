@@ -1,0 +1,73 @@
+\documentclass[dissertation.tex]{subfiles}
+
+\begin{document}
+\begin{appendices}
+\chapter{The \java{Function} class}\label{appendix:function}
+{
+    \begin{javafigure}
+import java.util.ArrayList;
+import java.util.function.BiFunction;
+
+public class Function extends HeapObject {
+    private BiFunction<HeapObject[], HeapObject[], HeapObject> inner;
+    private HeapObject[] freeVariables;
+    private ArrayList<HeapObject> arguments;
+    private int arity = 0;
+    private HeapObject result = null;
+
+    public Function(BiFunction<HeapObject[], HeapObject[], HeapObject> inner, int arity, HeapObject[] freeVariables) {
+        this.inner = inner;
+        this.arity = arity;
+        this.freeVariables = freeVariables;
+        arguments = new ArrayList<>();
+    }
+
+    @Override
+    public HeapObject enter() {
+        // Check if we've got a cached value
+        if (result != null) {
+            return result;
+        }
+
+        if (arguments.size() < arity) {
+            return this;
+        }
+        else if (arguments.size() > arity) {
+            try {
+                Function fun = (Function)inner
+                    .apply(arguments.subList(0, arity).toArray(new HeapObject[0]), freeVariables)
+                    .enter()
+                    .clone();
+                for (HeapObject arg : arguments.subList(arity, arguments.size()))
+                    fun.addArgument(arg);
+                result = fun.enter();
+                return result;
+            }
+            catch (CloneNotSupportedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        else {
+            result = inner.apply(arguments.toArray(new HeapObject[0]), freeVariables).enter();
+            return result;
+        }
+    }
+
+    public void addArgument(HeapObject arg) {
+        arguments.add(arg);
+    }
+
+    @Override
+    public Object clone() throws CloneNotSupportedException {
+        Function f = (Function)super.clone();
+        f.inner = inner;
+        f.arity = arity;
+        f.freeVariables = freeVariables.clone();
+        f.arguments = new ArrayList<>(arguments);
+        return f;
+    }
+}
+    \end{javafigure}
+}
+\end{appendices}
+\end{document}

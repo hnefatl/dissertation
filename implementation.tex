@@ -8,12 +8,12 @@ The compiler is comprised of a number of stages and substages, as shown in Figur
     \includegraphics[width=\textwidth]{figures/compiler_layout.png}
     \caption{}
     \label{fig:compiler-layout}
-    \todo[inline]{Redo n tikz or similar so it looks better.}
+    \todo[inline]{Redo in tikz or similar so it looks better.}
     \todo[inline]{Annotate with actual LOC for each section, to give a more concrete sense of the scale.}
 \end{figure}
 
 A brief overview of each stage is given here for a `big picture' view of the compiler, followed by more detailed
-descriptions below.
+descriptions below. A summary is given at the end of the chapter, along with repository structure.
 
 \begin{description}
 \item[Frontend]
@@ -591,7 +591,6 @@ j       stored in associative containers.
         dEqBoolNeq = ...
         \end{haskellfigure}
 
-
         To deoverload declarations using overloaded values, we essentially convert declarations of functions with types
         like \(\text{Num}\;\alpha\Rightarrow\alpha\rightarrow\alpha\) to
         \(\text{Num}\;\alpha\rightarrow\alpha\rightarrow\alpha\): we replace typeclass constraints with formal arguments
@@ -1039,10 +1038,7 @@ j       stored in associative containers.
                 public static _Integer add(_Integer x, _Integer y) {
                     return _make_Integer(x.value.add(y.value));
                 }
-                public static _Integer sub(_Integer x, _Integer y) { ... }
-                public static _Integer mult(_Integer x, _Integer y) { ... }
-                public static _Integer div(_Integer x, _Integer y) { ... }
-                public static _Integer negate(_Integer x) { ... }
+                ... // Analogous functions for subtraction and multiplication
 
                 public static boolean eq(_Integer x, _Integer y) { ... }
 
@@ -1050,14 +1046,20 @@ j       stored in associative containers.
             }
             \end{javafigure}
 
-            The \java{_make_Integer(String)} function allows a Java \java{_Integer} object to be constructed from a
-            Java string representation, which is used by the compiler to construct \haskell{Integer} values:
+            The \java{_make_Integer(String)} function is used by the compiler to construct \haskell{Integer} literals:
+            it allows a Java \java{_Integer} object to be constructed from a Java string representation. For example,
+            the bytecode that creates the Haskell literal \haskell{2} would load the string \monospace{"2"} from the
+            constant pool then invoke the creation method:
 
-            \todo[inline]{Brief two-line bytecode demonstrating this}
+            \begin{monospacefigure}
+            ldc          #210       // String 2
+            invokestatic #16        // Method tmp/_Integer._make_Integer:(Ljava/lang/String;)Ltmp/_Integer;
+            \end{monospacefigure}
 
-            The \java{add}, \java{sub}, etc. methods are Java implementations of the functions required by Haskell's
-            \haskell{Num}, \haskell{Eq} and \haskell{Show} typeclass instances for \haskell{Integer}. The section on
-            Hooks covers this aspect of code generation in more detail.
+            The \java{add}, \java{eq}, etc. methods are Java implementations of the functions required by Haskell's
+            \haskell{Num}, \haskell{Eq} and \haskell{Show} typeclass instances for \haskell{Integer}. For `builtin'
+            types, the implementation of these typeclass functions need to be given in Java, as they can't be expressed
+            in Haskell. Section \ref{sec:hooks} on Hooks covers this aspect of code generation in more detail.
 
         }
         \subsubsection{Datatypes}
@@ -1128,70 +1130,10 @@ j       stored in associative containers.
             }
             \end{itemize}
 
-            These behaviours are provided by the \java{Function} builtin class:
+            These behaviours are provided by the \java{Function} builtin class, which is given in Appendix
+            \ref{appendix:function}.
 
-            \todo[inline]{Formatting + it's quite a lot of code, but I think necessary to understand the details below.}
-            \begin{javafigure}
-            import java.util.ArrayList;
-            import java.util.function.BiFunction;
-                            
-            public class Function extends HeapObject {
-                private BiFunction<HeapObject[], HeapObject[], HeapObject> inner;
-                private HeapObject[] freeVariables;
-                private ArrayList<HeapObject> arguments;
-                private int arity = 0;
-                            
-                public Function(BiFunction<HeapObject[], HeapObject[], HeapObject> inner,
-                                int arity, HeapObject[] freeVariables) {
-                    this.inner = inner;
-                    this.arity = arity;
-                    this.freeVariables = freeVariables;
-                    arguments = new ArrayList<>();
-                }
-                            
-                @Override
-                public HeapObject enter() {
-                    if (arguments.size() < arity) { // Partial application
-                        return this;
-                    }
-                    else if (arguments.size() > arity) { // Over-applied
-                        try {
-                            Function result = (Function)inner
-                                .apply(
-                                    arguments.subList(0, arity).toArray(new HeapObject[0]),
-                                    freeVariables)
-                                .enter()
-                                .clone();
-                            for (HeapObject arg : arguments.subList(arity, arguments.size()))
-                                result.addArgument(arg);
-                            return result;
-                        }
-                        catch (CloneNotSupportedException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
-                    else { // Perfect application
-                        return inner.apply(
-                            arguments.toArray(new HeapObject[0]), freeVariables
-                        ).enter();
-                    }
-                }
-                            
-                public void addArgument(HeapObject arg) {
-                    arguments.add(arg);
-                }
-                            
-                @Override
-                public Object clone() throws CloneNotSupportedException {
-                    Function f = (Function)super.clone();
-                    f.inner = inner;
-                    f.arity = arity;
-                    f.freeVariables = freeVariables.clone();
-                    f.arguments = new ArrayList<>(arguments);
-                    return f;
-                }
-            }
-            \end{javafigure}
+            \todo[inline]{Now it's been moved to the appendices, is the following still clear enough?}
 
             A function \(f\) (either defined locally or at the top-level) in Haskell of arity \(n_a\) and using
             \(n_{fv}\) free variables is translated into two Java functions:
@@ -1358,6 +1300,7 @@ j       stored in associative containers.
         an in-memory representation of JVB, but support for a number of instructions were added to it: this section
         describes some of the more interesting ones that are heavily used by the compiler.
         
+        \todo[inline]{Would be nice to make these titles more noticeable...}
         \subsubsection{\monospace{lookupswitch}}
         {
             
@@ -1418,10 +1361,10 @@ j       stored in associative containers.
                 The subsequent 4 bytes constitute a signed \java{int} that gives the offset to jump to if the
                 scrutinee doesn't match any of the values given in the instruction.
 
-                For this description, `offset' means `signed relative address difference from the address of the
-                opcode of the instruction to the address of the target': if a \monospace{lookupswitch} instruction
-                has opcode at address 10 and is 30 bytes long, the offset used to jump to the immediately subsequent
-                instruction would be 30.
+                For this description, `offset' means `signed relative address difference from the address of the opcode
+                of the instruction to the address of the target': if a \monospace{lookupswitch} instruction is 30 bytes
+                long, the offset used to jump to the immediately subsequent instruction would be 30, regardless of the
+                position of the instruction in the file or the position of the offset within the instruction.
 
             }
             \item
@@ -1462,7 +1405,7 @@ j       stored in associative containers.
             \end{itemize}
         }
     }
-    \subsection{Hooks}
+    \subsection{Hooks}\label{sec:hooks}
     {
 
         Many standard functions operating on primitive types like \haskell{Int} and \haskell{Char}, such as
@@ -1495,9 +1438,6 @@ j       stored in associative containers.
         bytecode level, indistinguishable from functions generated by any other expression so can be called by any
         other function without issue.
 
-
-        \todo[inline]{Compare to GHC's approach? Looks similar}
-
     }
 }
 \section{Optimisations}
@@ -1525,7 +1465,7 @@ j       stored in associative containers.
         code without needing to initialise them: this eliminates initialisation code and in the case of variables
         additionally prevents allocating a new thunk on the heap. Lifting expressions as high as possible but not
         all the way to the top doesn't have any immediate advantages, but exposes benefits after the Binding
-        Deduplication pass, described in \ref{sec:binding-dedupe}.
+        Deduplication pass, described in Section \ref{sec:binding-dedupe}.
 
         Let lifting is an ILB to ILB transformation, as ILB exposes the most uses of let-bindings: almost every
         subexpression in a computation is let-bound to a variable as ILB requires that all function applications
@@ -1557,8 +1497,6 @@ j       stored in associative containers.
         would naturally converge to only having a single binding of \haskell{True} in the program, rather than
         multiple, which saves memory (as all values are allocated on the heap) and time (the program doesn't need to
         initialise a new thunk containing that simple value each time it's used).
-
-        \todo[inline]{Name-drop `phase ordering' at some point to sound smart?}
 
     }
     \subsection{Unreachable Code Elimination}\label{sec:unreachable-elim}
@@ -1599,6 +1537,179 @@ j       stored in associative containers.
     \ref{sec:dependency-analysis}) ensures that the definitions are compiled in a valid order, and unreachable code
     elimination (Section \ref{sec:unreachable-elim}) removes uncessary definitions to prevent program bloat.
 
+}
+\section{Summary}
+{
+
+
+
+}
+\section{Repository Structure}
+{
+    
+    The main code repository for this project is available at \url{https://github.com/hnefatl/dissertation-project}. The
+    important directories in the top-level of the repository are:
+
+    \begin{monospacefigure}
+    .
+    ├── app
+    ├── benchmarks
+    ├── src
+    ├── src
+    └── test
+    \end{monospacefigure}
+
+    All of the code in this repository was written from scratch.
+    
+    \subsection{\monospace{compiler}}
+    {
+
+        The vast majority of code written was in a library named \monospace{compiler}, which exposes an API for
+        compiling Haskell programs -- the code for this library is within the \monospace{src} directory. Files
+        corresponding to major stages in the compiler pipeline are shown in the directory tree below. A number of source
+        files have been omitted for clarity, as they contain utility functions or auxiliary code that is used by one of
+        the major files. The \monospace{Compiler.hs} source file does not correspond to a single pipeline stage, but
+        contains functions that string all of the other pipeline stages together.
+
+        \begin{monospacefigure}
+        src/
+        ├── Compiler.hs
+        ├── Backend
+        │   ├── CodeGen.hs
+        │   ├── Deoverload.hs
+        │   ├── ILAANF.hs
+        │   ├── ILA.hs
+        │   └── ILB.hs
+        ├── Optimisations
+        │   ├── BindingDedupe.hs
+        │   ├── LetLifting.hs
+        │   └── UnreachableCodeElim.hs
+        ├── Preprocessor
+        │   └── Renamer.hs
+        └── Typechecker
+            └── Typechecker.hs
+        \end{monospacefigure}
+
+        This library contains 6344 lines of Haskell source code.
+
+    }
+    \subsection{\monospace{compiler-exe}}
+    {
+
+        The compiler executable is imaginatively named \haskell{compiler-exe}, and resides in the \monospace{app}
+        directory:
+
+        \begin{monospacefigure}
+        app
+        └── Main.hs
+        \end{monospacefigure}
+
+        This single 97-line file contains the application entry point and code handling command-line arguments, before
+        passing control over to the \monospace{compiler} library for the actual compilation process.
+
+    }
+    \subsection{Tests}
+    {
+
+        Tests are contained in the \monospace{test} directory. The directory layout intentionally mimics the layout of
+        the \monospace{src} directory, so the tests for each major compiler stage are stored in a similarly named path.
+
+        \begin{monospacefigure}
+        test/
+        ├── AlphaEqSpec.hs
+        ├── Backend
+        │   ├── DeoverloadSpec.hs
+        │   ├── ILAANFSpec.hs
+        │   └── ILASpec.hs
+        ├── Preprocessor
+        │   ├── DependencySpec.hs
+        │   └── RenamerSpec.hs
+        ├── Spec.hs
+        ├── Typechecker
+        │   └── TypecheckerSpec.hs
+        └── WholeProgram.hs
+        \end{monospacefigure}
+
+        There are 1418 lines of Haskell source code for the tests.
+
+    }
+    \subsection{Benchmarks}
+    {
+
+        The code for evaluating the performance of the compiler is in the \monospace{benchmarks} directory, and consists
+        primarily of Python 3 scripts for representing, compiling, and executing a variety of benchmark programs using a
+        number of compilers, along with a script for plotting the data.
+
+        \begin{monospacefigure}
+        benchmarks/
+        ├── benchmark.py
+        ├── etabenchmark.py
+        ├── fregebenchmark.py
+        ├── fregec.jar
+        ├── javabenchmark.py
+        ├── jhaskellbenchmark.py
+        ├── jmhbenchmark.py
+        ├── Main_Template.java
+        ├── plot.py
+        ├── programs
+        │   ├── ackermann.eta
+        │   ├── ackermann.fr
+        │   ├── ackermann.hs
+        │   ├── factorial.eta
+        │   └── ...
+        ├── results
+        │   └── ...
+        ├── results.py
+        └── runbenchmarks.py
+        \end{monospacefigure}
+
+        The \monospace{*benchmark.py} files define classes of benchmark and the \monospace{runbenchmarks.py} file
+        creates objects of those classes to represent the various benchmarks and executes them.
+
+        The \monospace{programs} directory contains source files for the benchmarks, and the \monospace{results}
+        directory contains the data obtained from the benchmarks.
+
+        There are 821 lines of Python source code for the benchmarking framework.
+
+    }
+    \subsection{\monospace{hs-java}}
+    {
+
+        The \monospace{hs-java} library\footnote{\url{https://hackage.haskell.org/package/hs-java}} is a library
+        developed by Ilya V. Portnov for generating Java Bytecode. During my project, I made a number of modifications
+        to the library (described ????????), resulting in quite significant changes from the original. My fork of the
+        library is available at \url{https://github.com/hnefatl/hs-java}, and has Git additions/deletions of
+        \gitstats{1,772}{1,431}: the modified version of the library contains 3569 lines of Haskell source.
+
+        \todo[inline]{Find a place to reference the changes made, I feel like I've already duplicated this info once before.}
+
+        \begin{monospacefigure}
+        .
+        ├── JVM
+        │   ├── Assembler.hs
+        │   ├── Builder
+        │   │   ├── Instructions.hs
+        │   │   └── Monad.hs
+        │   ├── Builder.hs
+        │   ├── ClassFile.hs
+        │   ├── Common.hs
+        │   ├── Converter.hs
+        │   ├── Dump.hs
+        │   └── Exceptions.hs
+        └── Java
+            └── ...
+        \end{monospacefigure}
+
+        \monospace{Assembler.hs} defines a representation of the JVB instruction set, \monospace{ClassFile.hs} defines a
+        representation of Java Class files, and \monospace{Converter.hs} defines functions for converting the class file
+        representation to and from a raw byte representation. The files within the \monospace{Builder} directory define
+        a useful API for generating bytecode from Haskell using a monad named \haskell{GeneratorT}, and any other files
+        simply contain utility functions.
+
+        The files under the \monospace{Java} directory define convenience variables for use when generating bytecode
+        that refer to builtin Java classes such as \java{java.lang.Object}.
+
+    }
 }
 
 \end{document}

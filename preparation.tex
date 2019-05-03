@@ -5,10 +5,109 @@
 Preparation mostly involved reading papers, articles, and compiler documentation to form a rough idea of how to
 implement each stage of the compiler. 
 
-% Probably outline the major areas looked into: type system, WHNF, ANF, lazy evaluation.
-
 % TODO(kc506): Explain the scheduling issues here
 
+\section{Concepts}
+{
+
+    There are a number of key concepts that I needed to learn about in order to design and implement various stages in
+    the compiler: these are detailed in the following subsections.
+
+    \subsubsection{Typeclasses}
+    {
+        \todo[inline]{Didn't need to learn about these, they're central to Haskell, but should maybe write about for the non-Haskell-fluent examiner's sake}
+    }
+    \subsubsection{Kinds}
+    {
+
+        A Kind is often described as the `type of a type': we can say that \haskell{True :: Bool}, but looking to a type
+        system `one level up' we can say \haskell{Bool :: #\(*\)#} where \(*\) is the type of a `type constructor' that
+        takes no parameters. The type constructor \haskell{Maybe} has kind \(*\rightarrow*\), as it takes a single type
+        parameter: applying it to a type of kind \(*\) yields a type of kind \(*\), such as \haskell{Maybe Int}, while
+        applying it to a type with a different kind such as \haskell{Maybe Maybe} produces an invalid type.
+        
+        All values in Haskell have a type with kind \(*\): no values exist for types of other kinds. Kinds are used in
+        the type system to enforce type correctness (or perhaps kind correctness), such as rejecting \haskell{Bool Bool}
+        as an invalid type application.
+
+    }
+    \subsection{Weak Head Normal Form}\label{sec:whnf}
+    {
+
+        In a deterministic call-by-value language, evaluation of terms is to normal form (NF): \monospace{(1+2+3, True
+        && False)} is evaluated to \monospace{(6, False)}. An alternative normal form is weak head normal form (WHNF),
+        in which terms are evaluated up to their `head'. In Haskell, this is defined to be until the outermost term is
+        either a literal, a fully or partially applied data constructor, or a partially applied function. Any arguments
+        need not have been evaluated. The following Haskell expressions are either valid or invalid WHNF terms, as
+        indicated:
+
+        \begin{haskellfigure}
+        1               -- In WHNF
+        (+) 1           -- In WHNF
+        1 + 2           -- Not in WHNF
+        3               -- In WHNF
+        Just            -- In WHNF
+        Just True       -- In WHNF
+        (\\x -> x) 1    -- Not in WHNF
+        (+) (1 + 2)     -- In WHNF
+        (1 + 2) + 3     -- Not in WHNF
+        \end{haskellfigure}
+
+        Evaluation of an expression up to WHNF corresponds to a form of non-strict evaluation: partial applications of
+        functions or any data constructor applications don't force their arguments to be evaluated, but when a function
+        is applied to all its arguments, it reduces to the body without necessarily having evaluated its arguments. In
+        particular, the evaluation of a Haskell program is equivalent to its reduction to WHNF.
+
+    }
+    \subsection{Administrative Normal Form}\label{sec:anf}
+    {
+
+        Administrative Normal Form (ANF, presented in \cite{ANF}) is a style of writing programs in which all arguments
+        to functions are trivial (a variable, literal, or other irreducible `value' like a lambda expression). ANF is an
+        alternative to Continuation Passing Style (CPS) as a style of intermediate language that is often seen as being
+        simpler to manipulate.
+
+        The expression \haskell{f x (1 + 2)} in ANF would be \haskell{let y = 1 + 2 in f x y}.
+
+        ANF is quite convenient for conceptualising the `thunk' implementation of lazy evaluation, where expressions are
+        represented as (possibly shared) units of suspended computation: any variable that binds a non-trivial
+        expression acts as the name of the thunk representing that expression, and function arguments now pass around
+        references to expressions.
+
+        As part of the lowering process, the intermediate languages are converted into ANF as it makes generating lazy
+        code quite intuitive.
+
+    }
+
+    % TODO(kc506): Quick bullet-point summary of the above sections? Only if they gain more content
+
+}
+\section{Design Decisions}
+{
+
+    Key design decisions about the structure of the compiler and the implementation of certain features were made using
+    the researched concepts described in the previous section. These are given as big-picture overviews here, but are
+    covered in more detail in the implementation chapter.
+
+    \subsection{Datatype Implementations}
+    {
+
+        Haskell datatypes such as \haskell{data Maybe a = Nothing | Just a} need to be compiled down into some
+        representation in Java Bytecode.
+
+        ...
+
+        \todo[inline]{If the Java code extracts in the heap object section in the implementation are too much detail, then they can be ripped out and that entire section probably transplanted to here? Seems a bit of a weird layout though.}
+
+    }
+    \subsection{Laziness}
+    {
+
+        \todo[inline]{Was going to explain the design of laziness, using heap objects, but that seems too much like implementation. Might just remove this `design decisions' section.}
+
+    }
+
+}
 \section{Testability}
 {
 

@@ -388,13 +388,7 @@ j       stored in associative containers.
                 | KindFun Kind Kind
     \end{haskellfigure}
 
-    A \haskell{Kind} is often described as the `type of a type': we say that \haskell{True :: Bool}, but looking to a
-    type system `one level up' we can say \haskell{Bool :: #\(*\)#} where \(*\) is the type of a type constructor that
-    takes no parameters. The type constructor \haskell{Maybe} has kind \(*\rightarrow*\), as it takes a single type
-    parameter: applying it to a type of kind \(*\) yields a type of kind \(*\), such as \haskell{Maybe Int}. All Haskell
-    values have a type with kind \(*\): there are no values for types of other kinds. Kinds are used in the type system
-    to enforce type correctness (or perhaps kind correctness), such as rejecting \haskell{Bool Bool} as an invalid type
-    application.
+    \todo[inline]{Explanation of kinds got transplanted to the preparation: add a reference}
 
     Type variables have an associated kind to allow for type constraints such as \haskell{pure :: Functor #\(f\)# =>
     #\(\alpha\rightarrow f \alpha\)#}, which says that \haskell{pure} can take a value of any type and embed it into a
@@ -481,7 +475,8 @@ j       stored in associative containers.
             issue, along with an approach for fixing it called defaulting, is described in Section 11.5.1 of `Typing
             Haskell in Haskell' \cite{THIH}). My compiler does not implement this check, which allows some programs to
             be accepted by the compiler which crash at runtime (such cases can often be fixed by adding explicit type
-            signatures). This feature is missing simply because of a lack of time.
+            signatures). This feature was omitted in order to spend development time on the later stages of the
+            compiler.
 
         }
         \item
@@ -795,18 +790,8 @@ j       stored in associative containers.
     \subsection{Intermediate Language A - Administrative Normal Form}
     {
 
-        Administrative Normal Form (presented in \cite{ANF}) (ANF) is a style of writing programs in which all arguments
-        to functions must be trivial (a variable, literal, or other irreducible `value' like a lambda expression). ANF
-        is an alternative to Continuation Passing Style (CPS) as a style of intermediate language that is often seen as
-        being simpler to manipulate. The intermediate languages of GHC are transformed while in ANF.
-
-        This compiler uses ANF as it lends itself well to conceptualising lazy evaluation: as each complex
-        expression is referred to through a variable, if the expression is evaluated by one computation then all
-        other references to the variable transparently reference the resulting value, rather than a duplicate of the
-        computation.
-
         ILA-ANF is a subset of ILA which uses a more restricted grammar to enforce more invariants on the language
-        and guide the AST into ANF. The full definition of ILA-ANF is given below, and reuses the definitions of
+        and guide the AST into Administrative Normal Form (as described in Section \ref{sec:anf}). The full definition of ILA-ANF is given below, and reuses the definitions of
         \haskell{Binding} and \haskell{Alt} from ILA.
 
         In the case of ILA-ANF, `trivial' terms are taken to be variables, data constructors, and literals. Note
@@ -942,32 +927,6 @@ j       stored in associative containers.
     these `builtin' classes and uses a set of `hooks' when generating code to provide Java implementations of
     Haskell functions. This is covered in more detail later.
 
-    \subsection{Weak Head Normal Form}
-    {
-
-        A Haskell expression is in weak head normal form (WHNF) if it is either a partially applied function
-        (including lambda terms), a fully/partially applied data constructor, or a literal. Any arguments need not
-        have been evaluated.
-        
-        Evaluation of an expression up to WHNF corresponds to a form of non-strict evaluation: partial applications
-        of functions or any data constructor applications don't force their arguments to be evaluated, but when a
-        function is applied to all its arguments, it reduces to the body without necessarily having evaluated its
-        arguments. In particular, the evaluation of a Haskell program is equivalent to evaluation to WHNF.
-
-        The following Haskell expressions are either valid or invalid WHNF terms, as indicated:
-
-        \begin{haskellfigure}
-        1               -- In WHNF
-        (+) 1           -- In WHNF
-        1 + 2           -- Not in WHNF
-        3               -- In WHNF
-        Just            -- In WHNF
-        Just True       -- In WHNF
-        (\\x -> x) 1    -- Not in WHNF
-        (+) (1 + 2)     -- In WHNF
-        (1 + 2) + 3     -- Not in WHNF
-        \end{haskellfigure}
-    }
     \subsection{Heap Objects}\label{sec:heap-objects}
     {
 
@@ -992,9 +951,9 @@ j       stored in associative containers.
         }
         \end{javafigure}
 
-        The abstract \java{enter} method evaluates the object to WHNF and returns a reference to the result, and the
-        \java{clone} method simply returns a shallow copy of the object. This method is critical for implementing
-        function applications, described later.
+        The abstract \java{enter} method evaluates the object to WHNF (described in Section \ref{sec:whnf}) and returns
+        a reference to the result, and the \java{clone} method simply returns a shallow copy of the object. This method
+        is critical for implementing function applications, described later.
 
         \subsubsection{Literals}\label{sec:literals}
         {

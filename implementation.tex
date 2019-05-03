@@ -5,11 +5,9 @@
 The compiler is comprised of a number of stages and substages, as shown in Figure \ref{fig:compiler-layout}:
 
 \begin{figure}[h]
-    \includegraphics[width=\textwidth]{figures/compiler_layout.png}
+    \includegraphics[width=\textwidth]{figures/compiler_layout.pdf}
     \caption{}
     \label{fig:compiler-layout}
-    \todo[inline]{Redo in tikz or similar so it looks better.}
-    \todo[inline]{Annotate with actual LOC for each section, to give a more concrete sense of the scale.}
 \end{figure}
 
 A brief overview of each stage is given here for a `big picture' view of the compiler, followed by more detailed
@@ -63,9 +61,6 @@ descriptions below. A summary is given at the end of the chapter, along with rep
     \hfill
 
     Optimisations transform the intermediate languages into more efficient forms while preserving their semantics.
-
-    \todo[inline]{At time of writing these are done on ILB, might change to ILAANF so should update this accordingly.}
-    \todo[inline]{If any more optimisations are implemented, update the diagram and here.}
 
 }
 \item[Code Generation]
@@ -1020,7 +1015,7 @@ j       stored in associative containers.
 
             Here is an example literal implementation for \haskell{Integer}, Haskell's arbitrary precision integral
             value type. It is implemented using Java's \java{BigInteger} class to perform all the computation. The
-            copious uses of underscores is explained in the JVM Sanitisation section below.
+            copious uses of underscores is explained in Section \ref{sec:jvm-sanitisation}.
 
             \begin{javafigure}
             import java.math.BigInteger;
@@ -1254,7 +1249,7 @@ j       stored in associative containers.
             \todo[inline]{This is meant to be a reflective design discussion: say something about it being interesting to compare tradeoffs in performance and size? Also cost of class loading?}
         }
     }
-    \subsection{JVM Sanitisation}
+    \subsection{JVM Sanitisation}\label{sec:jvm-sanitisation}
     {
 
         Haskell\footnote{\url{https://www.haskell.org/onlinereport/lexemes.html}},

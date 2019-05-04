@@ -156,7 +156,7 @@ code repository structure.
 
         \begin{figure}[h]
         \centering
-        \begin{subfigure}[b]{0.45\textwidth}
+        \begin{subfigure}[t]{0.45\textwidth}
             \begin{haskellfigure*}{linenos=false}
             data Bool = False | True      #\(d_1\)#
             x = f True                    #\(d_2\)#
@@ -165,8 +165,8 @@ code repository structure.
             h y = f y                     #\(d_5\)#
             \end{haskellfigure*}
         \end{subfigure}
-        \begin{subfigure}[b]{0.5\textwidth}
-            \includegraphics[width=\textwidth]{figures/dependency_graph.png}
+        \begin{subfigure}[t]{0.5\textwidth}
+            \includegraphics[width=\textwidth, valign=t]{figures/dependency_graph.png}
         \end{subfigure}
         \caption
         {
@@ -1017,6 +1017,8 @@ code repository structure.
 
     \subsection{Heap Objects}\label{sec:heap-objects}
     {
+
+        \todo[inline]{Still figuring out where/how to move the big Java code dumps to increase clarity and keep things focused while not making the explanation confusing.}
 
         Literals, datatype values and closures are all represented at runtime by values on the heap, as they are all
         first-class values in Haskell, and will be referred to as `objects': this intentionally overloads the

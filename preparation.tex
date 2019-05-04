@@ -29,9 +29,9 @@ description of the tools, tests and general software development attitude used.
     \subsection{Weak Head Normal Form}\label{sec:whnf}
     {
 
-        In a deterministic call-by-value language, evaluation of terms is to normal form (NF): \monospace{(1+2+3, True
-        && False)} is evaluated to \monospace{(6, False)}. An alternative normal form is weak head normal form (WHNF),
-        in which terms are evaluated up to their `head'. In Haskell, this is defined to be until the outermost term is
+        In a deterministic call-by-value language, evaluation of terms is to normal form (NF): \haskell{(1+2+3, True &&
+        False)} is evaluated to \haskell{(6, False)}. An alternative normal form is weak head normal form (WHNF), in
+        which terms are evaluated up to their `head'. In Haskell, this is defined to be until the outermost term is
         either a literal, a fully or partially applied data constructor, or a partially applied function. Any arguments
         need not have been evaluated. The following Haskell expressions are either valid or invalid WHNF terms, as
         indicated:

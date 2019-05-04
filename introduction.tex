@@ -8,10 +8,10 @@ about the implementation of compilers and experiment with optimisations.
 
 \todo[inline]{This paragraph tries to emphasise that it was about learning stuff, and that... I learned stuff. Also a bit of targetted plugging to the phrase in the pink book `show how the work fits into the broad area of surrounding Computer Science'. I think it comes off as a bit clumsy though.}
 
-Overall, the project was a success. I implemented all of the major stages in a traditional optimising compiler pipeline
-apart from lexing/parsing: verification (through type checking/inference), lowering into intermediate languages,
-optimisation transformations, and code generation. In order to implement these stages, I had to extend my existing
-knowledge of type systems, language design, and compiler design from the associated Part 1B and Part 2 courses.
+The project was a success. I implemented all of the major stages in a traditional optimising compiler pipeline apart
+from lexing/parsing: verification (through type checking/inference), lowering into intermediate languages, optimisation
+transformations, and code generation. In order to implement these stages, I had to extend my existing knowledge of type
+systems, language design, and compiler design from the associated Part 1B and Part 2 courses.
 
 \section{Choice of Languages}
 {
@@ -30,31 +30,23 @@ knowledge of type systems, language design, and compiler design from the associa
 }
 \section{Related Work}
 {
-    \subsection{Haskell Compilers}
-    {
 
-        GHC is the industry-leading Haskell compiler, capable of generating high-performance code rivalling C. It takes
-        advantage of purity to aggressively optimise code and can evaluate parts of programs in parallel automatically,
-        without any explicit indication from the programmer.
+    GHC is the industry-leading Haskell compiler, capable of generating high-performance code rivalling C. It takes
+    advantage of purity to aggressively optimise code and can evaluate parts of programs in parallel automatically,
+    without any explicit indication from the programmer.
 
-        Other Haskell compilers exist, but are significantly less commonly used.
+    GHC targets various machine languages and includes an LLVM backend, but doesn't target JVB. There are two actively
+    maintained compilers from dialects of Haskell to JVB that I am aware of: Eta and Frege.
 
-    }
-    \subsection{Dialect of Haskell to JVB Compilers}
-    {
+    \todo[inline]{Should I link to these projects as citations rather than footnotes, so I don't accidentally end up with duplicate footnote links throughout the diss? Or just have footnote links here and make sure not to add footnotes later.}
 
-        There are two actively maintained compilers from dialects of Haskell to JVB that I am aware of: Eta and Frege.
+    Eta is a dialect of Haskell emphasising foreign-function interoperability with Java. The \monospace{eta} compiler is
+    a fork of GHC, replacing the code generation stage with one producing JVB.
 
-        \todo[inline]{Should I link to these projects as citations rather than footnotes, so I don't accidentally end up with duplicate footnote links throughout the diss? Or just have footnote links here and make sure not to add footnotes later.}
+    Frege is another dialect of Haskell which also aims to provide high-quality Java interoperability, but targets Java
+    rather than bytecode directly. It was developed from scratch and is now written in Frege, as the compiler can
+    bootstrap itself.
 
-        Eta is a dialect of Haskell emphasising foreign-function interoperability with Java. The \monospace{eta}
-        compiler is a fork of GHC, replacing the code generation stage with one producing JVB.
-
-        Frege is another dialect of Haskell which also aims to provide high-quality Java interoperability, but targets
-        Java rather than bytecode directly. It was developed from scratch and is now written in Frege, as the compiler
-        can bootstrap itself.
-
-    }
 }
 
 

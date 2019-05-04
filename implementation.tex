@@ -723,16 +723,15 @@ code repository structure.
             \todo[inline]{Give BNF instead of Haskell ADTs?}
             \begin{haskellfigure}
             data Expr = Var VariableName Type
-                        | Con VariableName Type
-                        | Lit Literal Type
-                        | App Expr Expr
-                        | Lam VariableName Type Expr
-                        | Let VariableName Type Expr Expr
-                        | Case Expr [VariableName] [Alt Expr]
-                        | Type Type
+                      | Con VariableName Type
+                      | Lit Literal Type
+                      | App Expr Expr
+                      | Lam VariableName Type Expr
+                      | Let VariableName Type Expr Expr
+                      | Case Expr [VariableName] [Alt Expr]
 
             data Literal = LiteralInt Integer
-                            | LiteralChar Char
+                         | LiteralChar Char
 
             data Alt a = Alt AltConstructor a
 
@@ -740,7 +739,7 @@ code repository structure.
                                 | Default
 
             data Binding a = NonRec VariableName a
-                            | Rec (Map VariableName a)
+                           | Rec (Map VariableName a)
             \end{haskellfigure}
 
             A Haskell program is lowered by this pass into a list of \haskell{Binding Expr}: a list of recursive or
@@ -755,8 +754,6 @@ code repository structure.
             ILA is still quite high-level, so many of the language constructs have similar semantics to their
             Haskell counterparts. The main benefit in this lowering pass is to collapse redundant Haskell syntax
             (syntactic sugar) into a smaller grammar.
-
-            \todo[inline]{\monospace{Type} isn't really used afaik, it's a leftover from when I was trying to do System F style types. Should see if I can remove it.}
 
             Most of these constructors have familiar usages, but some are more subtle:
 
@@ -896,7 +893,6 @@ code repository structure.
         data AnfTrivial = Var VariableName Type
                         | Con VariableName Type
                         | Lit Literal Type
-                        | Type Type
 
         data AnfApplication = App AnfApplication AnfTrivial
                             | TrivApp AnfTrivial
@@ -933,14 +929,14 @@ code repository structure.
 
         \begin{haskellfigure}
         data Arg = ArgLit Literal
-                    | ArgVar VariableName
+                 | ArgVar VariableName
 
         data Exp = ExpLit Literal
-                    | ExpVar VariableName
-                    | ExpApp VariableName [Arg]
-                    | ExpConApp VariableName [Arg]
-                    | ExpCase Exp Type [VariableName] [Alt Exp]
-                    | ExpLet VariableName Rhs Exp
+                 | ExpVar VariableName
+                 | ExpApp VariableName [Arg]
+                 | ExpConApp VariableName [Arg]
+                 | ExpCase Exp Type [VariableName] [Alt Exp]
+                 | ExpLet VariableName Rhs Exp
 
         data Rhs = RhsClosure [VariableName] Exp
         \end{haskellfigure}

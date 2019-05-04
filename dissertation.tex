@@ -42,12 +42,13 @@
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{6pt}
 
-\newmintinline[monospace]{text}{escapeinside=\#\#, mathescape}
-\newmintinline[haskell]{haskell}{escapeinside=\#\#, mathescape}
-\newmintinline[java]{java}{escapeinside=\#\#, mathescape}
-\newminted[monospacefigure]{text}{linenos, frame=lines, framesep=2mm, autogobble, escapeinside=\#\#, mathescape}
-\newminted[haskellfigure]{haskell}{linenos, frame=lines, framesep=2mm, autogobble, escapeinside=\#\#, mathescape}
-\newminted[javafigure]{java}{linenos, frame=lines, framesep=2mm, autogobble, escapeinside=\#\#, mathescape}
+\setminted{fontsize=\footnotesize}
+\newmintinline[monospace]{text}{escapeinside=\#\#, mathescape, fontsize=\normalsize}
+\newmintinline[haskell]{haskell}{escapeinside=\#\#, mathescape, fontsize=\normalsize}
+\newmintinline[java]{java}{escapeinside=\#\#, mathescape, fontsize=\normalsize}
+\newminted[monospacefigure]{text}{linenos, frame=lines, framesep=1mm, autogobble, escapeinside=\#\#, mathescape}
+\newminted[haskellfigure]{haskell}{linenos, frame=lines, framesep=1mm, autogobble, escapeinside=\#\#, mathescape}
+\newminted[javafigure]{java}{linenos, frame=lines, framesep=1mm, autogobble, escapeinside=\#\#, mathescape}
 
 \renewcommand{\baselinestretch}{1.1} % adjust line spacing to make more readable
 

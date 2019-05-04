@@ -370,10 +370,10 @@ code repository structure.
         \end{haskellfigure}
 
         A qualified/overloaded type is a simple type with type constraints/predicates attached, such as \haskell{Eq
-        #\(\alpha\)# => #\(\alpha\rightarrow\alpha\rightarrow\)# Bool} (the constraint here being just \haskell{Eq
-        #\(\alpha\)#}). The constraints act as restrictions on the valid types that can fulfil the type variable, or
-        equivalently predicates which must hold on the variables: the type signature is only valid for \(\alpha\) that
-        are instance of the \haskell{Eq} typeclass.
+        #\(\alpha\)# => #\(\alpha\rightarrow\alpha\rightarrow\)# Bool} (the type constraint here being just \haskell{Eq
+        #\(\alpha\)#}). The type constraints act as restrictions on the valid types that can fulfil the type variable,
+        or equivalently predicates which must hold on the variables: the type signature is only valid for \(\alpha\)
+        that are instance of the \haskell{Eq} typeclass.
     
         A quantified/polymorphic type is an overloaded type with a set of type variables that are universally quantified
         over the type, meaning they must later be instantiated to a specific type/type variable (universally quantified
@@ -411,22 +411,22 @@ code repository structure.
             The first pass tags each subexpression with a type variable, then uses rules similar to the HM inference
             rules to infer the value of the type variable, usually using the type variables of subterms.
             
-            Overloaded functions present a difference from the HM rules, as some expressions generate constraints on the
-            type variables involved: using an overloaded function like \haskell{(+)} will first require instantiating
-            the polymorphic type to an overloaded type
+            Overloaded functions present a difference from the HM rules, as some expressions generate typeclass
+            constraints on the type variables involved: using an overloaded function like \haskell{(+)} will first
+            require instantiating its polymorphic type to an overloaded type
             (\(\forall\alpha.\;\text{Num}\alpha\Rightarrow\alpha\rightarrow\alpha\rightarrow\alpha\) to
             \(\text{Num}\beta\Rightarrow\beta\rightarrow\beta\rightarrow\beta\), where \(\beta\) is a fresh unique type
             variable), then moving the constraints from the type to the set of constraints built up while traversing
             this declaration to get just \(\beta\rightarrow\beta\rightarrow\beta\). This is the ground type that's
-            unified with the type variable used to tag the use of \haskell{(+)}, and the constraint is stored for use
-            after finishing traversing the declaration.
+            unified with the type variable used to tag the use of \haskell{(+)}, and the type constraints are stored for
+            use after finishing traversing the declaration.
 
             After a pattern binding declaration has been fully traversed, types are generated for all the variable names
             bound by the patterns. This involves adding explicit quantifiers and constraints to the simple type inferred
             for the top-level expression on the right-hand side of the binding. All type variables within the simple
             type that aren't already in scope from eg.\ a class definition are added as universally quantified
-            variables, and any constraints involving type variables that are free in the simple type are added as the
-            qualifiers to the type.
+            variables, and any constraints generated during processing the declaration involving type variables free in
+            the simple type, are added as the qualifiers to the type.
 
         }
         \item
@@ -506,6 +506,23 @@ code repository structure.
             \todo[inline]{Check they actually crash at runtime: I feel like it should get caught in deoverloading...}
 
         }
+        \subsubsection{Defaulting}
+        {
+
+            As a defence against the issues detected by the ambiguity check, and to make Haskell code slightly cleaner,
+            the Haskell Report defines a feature called
+            `defaulting'\footnote{\url{https://www.haskell.org/onlinereport/decls.html\#sect4.3.4}} which allows for
+            ambiguous type variables appearing in \haskell{Num} constraints to be defaulted to a type specified on a
+            per-module level.
+
+            This means that in the expression \haskell{const 1 2}, the type of \haskell{2} is defaulted to
+            \haskell{Integer}, rather than raising an error.
+
+            This feature was not implemented, as the time taken to implement it was expected to be better spent
+            elsewhere. This is a non-critical feature, as explicit type signatures can always be added (eg.\
+            \haskell{const 1 (2 :: Int)}).
+
+        }
         \subsubsection{Improvements}
         {
 
@@ -526,78 +543,159 @@ code repository structure.
     \subsection{Deoverloader}\label{sec:deoverloading}
     {
 
-        The deoverloading stage performs a translation which eliminates typeclasses, resulting in an AST tagged with
-        types that no longer have type contexts. The implementation of typeclasses chosen was dictionary passing:
+        The deoverloading stage performs a translation which implements typeclasses using a technique named dictionary
+        passing. This produces an AST tagged with types that no longer have type contexts.
 
         \subsubsection{Dictionary Passing}
         {
 
-            To convert \haskell{add1 x = (+) x 1} with type \(\forall \alpha.\; \text{Num }\alpha \Rightarrow
-            \alpha\rightarrow\alpha\) to a non-overloaded function, we can add an extra argument that carries the
-            `implementation' of the \(\text{Num }\alpha\) constraint, which we then pass down to the \haskell{(+)}
-            function: \haskell{add1' dNum x = (+) dNum x 1}.
+            The expression \haskell{1 + 2} has type \haskell{Num a => a}, where the expression is essentially
+            `overloaded' on the type of \haskell{a} (as \haskell{(+)} is overloaded). This overloading can be
+            implemented by adding extra parameters (`dictionaries') to all overloaded functions, which provide the
+            implementation of any overloaded operators such as \haskell{(+)}. This is similar to virtual method tables
+            in object oriented languages, except the v-table is being passed as an extrinsic argument, rather than being
+            intrinsic to the object being operated on.
 
             The approach used here is to perform a source-to-source transformation on the AST that replaces
-            typeclass/instance declarations with datatype/value/function declarations.
+            typeclass/instance declarations with datatype/value/function declarations. There are three parts to the
+            transformation:
+            
+            \begin{enumerate}
+            \item
+            {
 
+                Each typeclass is replaced by a datatype which acts as the \textbf{type} of the v-tables for that class.
+
+                Further, each function defined by a typeclass is made into a top-level function that essentially
+                extracts the implementation function from the passed dictionary (equivalent to extracting a function
+                pointer entry from the method table).
+
+                \begin{figure}[H]
+                \centering
+                \begin{subfigure}[t]{0.35\textwidth}
+                \begin{haskellfigure}
+                class Eq a where
+                    (==), (/=) :: a -> a -> Bool
+                \end{haskellfigure}
+                \end{subfigure}
+                \hspace{5mm}
+                \begin{subfigure}[t]{0.55\textwidth}
+                \begin{haskellfigure}
+                data Eq a = Eq (a -> a -> Bool) (a -> a -> Bool)
+
+                (==), (/=) :: Eq a -> a -> a -> Bool
+                (==) (Eq eq _) = eq
+                (/=) (Eq _ neq) = neq
+                \end{haskellfigure}
+                \end{subfigure}
+                \end{figure}
+            }
+            \item
+            {
+
+                Each instance declaration is replaced by a value of the corresponding class' datatype, providing an
+                implementation of a v-table that can be passed around. Each of these values is a dictionary that can be
+                passed to an overloaded function.
+
+                \begin{figure}[H]
+                \centering
+                \begin{subfigure}[t]{0.25\textwidth}
+                \begin{haskellfigure}
+                instance Eq Int where
+                    (==) = foo
+                    (/=) = bar
+                \end{haskellfigure}
+                \end{subfigure}
+                \hspace{5mm}
+                \begin{subfigure}[t]{0.25\textwidth}
+                \begin{haskellfigure}
+                dEqInt :: Eq Int
+                dEqInt = Eq foo bar
+                \end{haskellfigure}
+                \end{subfigure}
+                \end{figure}
+            }
+            \item
+            {
+
+                Any call-site of a function with an overloaded type needs to be passed the relevant dictionary: for
+                example, \haskell{x = 1 + 2 :: Int} is translated into \haskell{x = (+) dNumInt 1 2 :: Int}.
+
+                Similarly, any definition of a symbol which has an overloaded type needs to be extended with parameters
+                to carry the implementation of all the typeclass constraints, in order to pass them down to the
+                subexpressions within the function which require the implementations. Quite pleasingly, this replaces
+                the \haskell{=>} symbol with \haskell{->}.
+
+                \begin{figure}[H]
+                \centering
+                \begin{subfigure}[t]{0.30\textwidth}
+                \begin{haskellfigure}
+                sum :: Num a => [a] -> a
+                sum xs = foldl (+) 0 xs
+                \end{haskellfigure}
+                \end{subfigure}
+                \hspace{5mm}
+                \begin{subfigure}[t]{0.45\textwidth}
+                \begin{haskellfigure}
+                sum :: Num a -> [a] -> a
+                sum dNumA xs = foldl ((+) dNumA) 0 xs
+                \end{haskellfigure}
+                \end{subfigure}
+                \end{figure}
+
+                Note that this also affects declarations of symbols which aren't originally functions:
+
+                \begin{figure}[H]
+                \centering
+                \begin{subfigure}[t]{0.30\textwidth}
+                \begin{haskellfigure}
+                x :: Num a => a
+                x = sum [1,2,3,4]
+                \end{haskellfigure}
+                \end{subfigure}
+                \hspace{5mm}
+                \begin{subfigure}[t]{0.45\textwidth}
+                \begin{haskellfigure}
+                x :: Num a -> a
+                x dNumA = sum dNumA [1,2,3,4]
+                \end{haskellfigure}
+                \end{subfigure}
+                \end{figure}
+
+            }
+            \end{enumerate}
+
+            These three steps can be performed in a single pass over the type-tagged Haskell AST, thanks to the
+            information gathered in previous passes and the type annotations.
+
+            This approach can be easily extended to typeclasses with `superclasses' (by storing superclass dictionaries
+            inside subclass dictionaries) and instance declarations with contexts (by making functions that construct
+            dictionaries from other dictionaries), such as those shown in Figure \ref{fig:instance-context}.
+
+            My compiler does not support these uses as the development focus at this stage was on reaching a minimal
+            working subset of Haskell. However, the existing implementation demonstrates that support is definitely
+            achievable.
+
+            \begin{figure}[h]
+            \centering
+            \begin{subfigure}[t]{0.40\textwidth}
             \begin{haskellfigure}
-            class Eq a where
-                (==), (/=) :: a -> a -> Bool
-            instance Eq Bool where
-                (==) = ...
-                (/=) = ...
+            class Functor m => Monad m where
+                ...
             \end{haskellfigure}
-
-            Typeclasses are replaced by datatypes equivalent to tuples with an element for each function defined by the
-            class, and instances are replaced by values of the respective class' datatype, filling in the elements using
-            the implementation provided by the instance declaration. Extractor functions are added which pull specific
-            elements out of the datatype to get at the actual implementation of the function.
-
+            \end{subfigure}
+            \hspace{5mm}
+            \begin{subfigure}[t]{0.40\textwidth}
             \begin{haskellfigure}
-            -- Implementation of the typeclass
-            data Eq a = Eq (a -> a -> Bool) (a -> a -> Bool)
-
-            -- The functions defined by the typeclass extract the implementation functions
-            (==), (/=) :: Eq a -> a -> a -> Bool
-            (==) (Eq eq _) = eq
-            (/=) (Eq _ neq) = neq
-
-            -- The implementation of the typeclass instance
-            dEqBool :: Eq Bool
-            dEqBool = Eq dEqBoolEq dEqBoolNeq
-
-            -- The function implementations defined in the instance
-            dEqBoolEq, dEqBoolNeq :: Bool -> Bool -> Bool
-            dEqBoolEq = ...
-            dEqBoolNeq = ...
+            instance Eq a => Eq (Maybe a) where
+                Just x == Just y = x == y
+                Nothing == Nothing = True
+                _ == _ = False
             \end{haskellfigure}
-        }
-        \subsubsection{Implementation}
-        {
-
-            To deoverload declarations using overloaded values, we essentially convert declarations of functions with
-            types like \(\text{Num}\;\alpha\Rightarrow\alpha\rightarrow\alpha\) to
-            \(\text{Num}\;\alpha\rightarrow\alpha\rightarrow\alpha\): we replace typeclass constraints with formal
-            arguments to carry the implementation dictionaries. Similarly when using an expression of overloaded type,
-            we add an actual argument to the call site for each typeclass constraint to account for the extra arguments
-            we added to the definition.
-        
-            For example, \haskell{foo x = x == 1} deoverloads to \haskell{add1 dEqa x = (==) dEqa x 1}: we add an extra
-            formal argument to the function declaration, and insert it in the call site to \haskell{(+)}.
-
-            In order to know what variables to insert at call sites, the names of in-scope variables holding values of
-            typeclass implementations are stored while traversing the AST. Initially the mapping contains the ground
-            instances provided by top-level instance declarations (eg.\
-            \(\{\text{Num\;Int}\mapsto\texttt{dNumInt},\;\text{Eq\;Int}\mapsto\texttt{dEqInt},\;...\}\)), and we update
-            it to include any in-scope extra arguments we add to functions while deoverloading them. When we encounter
-            an overloaded variable, we insert arguments for each type constraint by finding matching constraints within
-            our mapping.
-
-            One special case in the process is the handling of literals. Whilst arbitrary expressions with overloaded
-            types always require a dictionary to be passed (consider that the innocent-looking \haskell{x} in
-            \haskell{let x = 1 + 2 in x} involves an application of \haskell{(+)} which requires a dictionary to provide
-            the implementation), literals do not require a dictionary as they can never perform any computation.
-
+            \end{subfigure}
+            \caption{Typeclass contexts allow for expressing the semantics that `in order for \haskell{m} to be a \haskell{Monad}, it must also be a \haskell{Functor}'. Instance contexts allow for the semantics `for any \haskell{a} that is an instance of \haskell{Eq}, \haskell{Maybe a} is also an instance of \haskell{Eq}.'}
+            \label{fig:instance-context}
+            \end{figure}
         }
     }
 }
@@ -730,9 +828,9 @@ code repository structure.
             font:
             \begin{alignat*}{2}
             \text{translate} & (v:vs, v':ps, b) && =\; \text{translate} (vs, ps, b) [v/v'] \\
-            \text{translate} & (v:vs, (\text{con }ps'):ps, b) && =\; \texttt{case } v \texttt{ of \{ }\text{con
-            }vs'\texttt{ -> } \text{translate} (vs' \doubleplus vs, ps' \doubleplus ps, b) \texttt{ \}} \\
-            & && \hspace{1.5cm}\textit{where } vs' \textit{ are fresh variables} \\
+            \text{translate} & (v:vs, (con\;ps'):ps, b) && =\; \texttt{case } v \texttt{ of \{ }con\;vs'\texttt{ -> }
+            \text{translate} (vs' \doubleplus vs, ps' \doubleplus ps, b) \texttt{ \}} \\
+            & && \hspace{1.5cm}\text{where } vs' \text{ are fresh variables} \\
             \text{translate} & (v:vs, (w \texttt{ @ } z):ps, b) && =\; \text{translate} (v:vs, z:ps, b) [v/w] \\
             \text{translate} & ([], [], b) && =\; b
             \end{alignat*}

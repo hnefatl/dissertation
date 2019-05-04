@@ -1,0 +1,7 @@
+#!/bin/bash
+
+mupdf introduction.pdf &
+mupdf preparation.pdf &
+mupdf implementation.pdf &
+mupdf evaluation.pdf &
+mupdf conclusion.pdf &

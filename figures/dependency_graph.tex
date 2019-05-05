@@ -1,0 +1,66 @@
+\documentclass[12pt]{standalone}
+
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta}
+
+\begin{document}
+
+\tikzset{every picture/.style={line width=0.75pt}} %set default line width to 0.75pt        
+\tikzstyle{arrow}=[-{Latex[length=3mm,width=3mm]}]
+
+\begin{tikzpicture}[x=0.75pt,y=0.75pt,yscale=-1,xscale=1]
+
+%Shape: Circle [id:dp7745297884312126] 
+\draw   (60,125) .. controls (60,83.58) and (93.58,50) .. (135,50) .. controls (176.42,50) and (210,83.58) .. (210,125) .. controls (210,166.42) and (176.42,200) .. (135,200) .. controls (93.58,200) and (60,166.42) .. (60,125) -- cycle ;
+
+%Shape: Circle [id:dp9391591984531152] 
+\draw   (270,125) .. controls (270,83.58) and (303.58,50) .. (345,50) .. controls (386.42,50) and (420,83.58) .. (420,125) .. controls (420,166.42) and (386.42,200) .. (345,200) .. controls (303.58,200) and (270,166.42) .. (270,125) -- cycle ;
+
+%Shape: Circle [id:dp31312765655138275] 
+\draw   (270,335) .. controls (270,293.58) and (303.58,260) .. (345,260) .. controls (386.42,260) and (420,293.58) ..
+(420,335) .. controls (420,376.42) and (386.42,410) .. (345,410) .. controls (303.58,410) and (270,376.42) .. (270,335)
+-- cycle ;
+
+%Straight Lines [id:da7162927995225055] 
+\draw[arrow] (210,125) -- (270,125) ;
+
+%Straight Lines [id:da5882504457389893] 
+\draw[arrow] (345,260) -- (345,200) ;
+
+%Shape: Circle [id:dp5651745831991422] 
+\draw   (120,485) .. controls (120,443.58) and (153.58,410) .. (195,410) .. controls (236.42,410) and (270,443.58) .. (270,485) .. controls (270,526.42) and (236.42,560) .. (195,560) .. controls (153.58,560) and (120,526.42) .. (120,485) -- cycle ;
+
+%Straight Lines [id:da6089043447946196] 
+\draw[arrow] (420,485) -- (270,485) ;
+
+%Shape: Circle [id:dp021448809033857597] 
+\draw   (420,485) .. controls (420,443.58) and (453.58,410) .. (495,410) .. controls (536.42,410) and (570,443.58) .. (570,485) .. controls (570,526.42) and (536.42,560) .. (495,560) .. controls (453.58,560) and (420,526.42) .. (420,485) -- cycle ;
+
+%Straight Lines [id:da8575315215952682] 
+\draw[arrow] (248,432) -- (292,387) ;
+
+%Straight Lines [id:da6949023440752592] 
+\draw[arrow] (398,388) -- (442,432) ;
+
+%Rounded Rect [id:dp9841476399636254] 
+\draw  [draw opacity=0][fill={rgb, 255:red, 0; green, 0; blue, 0 }  ,fill opacity=0.15 ] (100,336) .. controls (100,282.98) and (142.98,240) .. (196,240) -- (494,240) .. controls (547.02,240) and (590,282.98) .. (590,336) -- (590,484) .. controls (590,537.02) and (547.02,580) .. (494,580) -- (196,580) .. controls (142.98,580) and (100,537.02) .. (100,484) -- cycle ;
+%Rounded Rect [id:dp5466321808875759] 
+\draw  [draw opacity=0][fill={rgb, 255:red, 0; green, 0; blue, 0 }  ,fill opacity=0.15 ] (40,87) .. controls (40,55.52) and (65.52,30) .. (97,30) -- (173,30) .. controls (204.48,30) and (230,55.52) .. (230,87) -- (230,163) .. controls (230,194.48) and (204.48,220) .. (173,220) -- (97,220) .. controls (65.52,220) and (40,194.48) .. (40,163) -- cycle ;
+%Rounded Rect [id:dp8667476717041303] 
+\draw  [draw opacity=0][fill={rgb, 255:red, 0; green, 0; blue, 0 }  ,fill opacity=0.15 ] (250,87) .. controls (250,55.52) and (275.52,30) .. (307,30) -- (383,30) .. controls (414.48,30) and (440,55.52) .. (440,87) -- (440,163) .. controls (440,194.48) and (414.48,220) .. (383,220) -- (307,220) .. controls (275.52,220) and (250,194.48) .. (250,163) -- cycle ;
+
+% Text Node
+\draw (135,125) node  [align=center] {$\displaystyle d_{1}$\\Bound:\\\texttt{\{\textcolor{blue}{Bool},\textcolor{red}{False},\textcolor{red}{True}\}}\\Free: \texttt{\{\}}};
+% Text Node
+\draw (345,125) node  [align=center] {$\displaystyle d_{2}$\\Bound: \texttt{\{\textcolor{red}{x}\}}\\Free: \texttt{\{\textcolor{red}{f}, \textcolor{red}{True}\}}};
+% Text Node
+\draw (345,335) node  [align=center] {$\displaystyle d_{3}$\\Bound: \texttt{\{\textcolor{red}{f}\}}\\Free: \texttt{\{\textcolor{red}{g}\}}};
+% Text Node
+\draw (195,485) node  [align=center] {$\displaystyle d_{4}$\\Bound: \texttt{\{\textcolor{red}{g}\}}\\Free: \texttt{\{\textcolor{red}{h}\}}};
+% Text Node
+\draw (495,485) node  [align=center] {$\displaystyle d_{5}$\\Bound: \texttt{\{\textcolor{red}{h}\}}\\Free: \texttt{\{\textcolor{red}{f}\}}};
+
+
+\end{tikzpicture}
+
+\end{document}

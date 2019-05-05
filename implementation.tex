@@ -156,7 +156,7 @@ code repository structure.
 
         \begin{figure}[h]
         \centering
-        \begin{subfigure}[t]{0.45\textwidth}
+        \begin{subfigure}[t]{0.4\textwidth}
             \begin{haskellfigure*}{linenos=false}
             data Bool = False | True      #\(d_1\)#
             x = f True                    #\(d_2\)#
@@ -166,7 +166,7 @@ code repository structure.
             \end{haskellfigure*}
         \end{subfigure}
         \begin{subfigure}[t]{0.5\textwidth}
-            \includegraphics[width=\textwidth, valign=t]{figures/dependency_graph.png}
+            \includegraphics[width=\textwidth, valign=t]{figures/dependency_graph.pdf}
         \end{subfigure}
         \caption
         {
@@ -174,7 +174,6 @@ code repository structure.
             in red text, type constants in blue. Strongly connected components are highlighted.
         }
         \label{fig:dependency-graph}
-        \todo[inline]{Prettier graph: better colours/some other grouping style, and use a more latex-y font.}
         \end{figure}
 
         Typechecking declarations within the same component can proceed in an arbitrary order, we just need to ensure
@@ -1355,35 +1354,37 @@ code repository structure.
             this instruction is that the length varies between usages:
 
             \tikzstyle{box}=[rectangle, draw=black, text centered]
-            \tikzstyle{arrow}=[below, pos=0.5]
+            \tikzstyle{underarrow}=[below, pos=0.5]
+            \tikzstyle{doublearrow}=[{Latex[length=1.5mm,width=1.5mm]}-{Latex[length=1.5mm,width=1.5mm]}]
+            \tikzstyle{leftarrow}=[{Latex[length=1.5mm,width=1.5mm]}-]
 
             \begin{figure}[h]
                 \begin{tikzpicture}
                 \small
 
                 \node at (0.5  ,0) [box, minimum width=2cm, minimum height=1cm, rotate=90]{Opcode};
-                \draw[>=latex,<->] (0,-1.25) -- (1,-1.25) node[arrow] {1 byte};
+                \draw[doublearrow] (0,-1.25) -- (1,-1.25) node[underarrow] {1 byte};
 
                 \node at (2.25 ,0) [box, minimum width=2.5cm, minimum height=2cm]
                     {\begin{tabular}{cc}Padding\\\(0 \leq p \leq 3\)\end{tabular}};
-                \draw[>=latex,<->] (1,-1.25) -- (3.5,-1.25) node[arrow] {\(p\) bytes};
+                \draw[doublearrow] (1,-1.25) -- (3.5,-1.25) node[underarrow] {\(p\) bytes};
 
                 \node at (4.75 ,0) [box, minimum width=2.5cm, minimum height=2cm]{Default offset};
-                \draw[>=latex,<->] (3.5,-1.25) -- (6,-1.25) node[arrow] {4 bytes};
+                \draw[doublearrow] (3.5,-1.25) -- (6,-1.25) node[underarrow] {4 bytes};
 
                 \node at (7.25 ,0) [box, minimum width=2.5cm, minimum height=2cm]
-                    {\begin{tabular}{cc}Num. cases\\\(0 \leq n \leq 2^{31}\)\end{tabular}};
-                \draw[>=latex,<->] (6,-1.25) -- (8.5,-1.25) node[arrow] {4 bytes};
+                    {\footnotesize\begin{tabular}{cc}Num. cases\\\(0 \leq n \leq 2^{31}\)\end{tabular}};
+                \draw[doublearrow] (6,-1.25) -- (8.5,-1.25) node[underarrow] {4 bytes};
 
                 \node at (9.75 ,0) [box, minimum width=2.5cm, minimum height=2cm, dotted]{\(\text{Match}_1\)};
-                \draw[>=latex,<->] (8.5,-1.25) -- (11,-1.25) node[arrow] {4 bytes};
+                \draw[doublearrow] (8.5,-1.25) -- (11,-1.25) node[underarrow] {4 bytes};
 
                 \node at (12.25,0) [box, minimum width=2.5cm, minimum height=2cm, dotted]{\(\text{Offset}_1\)};
-                \draw[>=latex,<->] (11,-1.25) -- (13.5,-1.25) node[arrow] {4 bytes};
+                \draw[doublearrow] (11,-1.25) -- (13.5,-1.25) node[underarrow] {4 bytes};
 
                 \node at (14.5 ,0) {\begin{tabular}{cc}\dots\\\(n-1\)\end{tabular}};
                 \draw [dotted] (15.5,1) -- (13.5,1) -- (13.5,-1) -- (15.5,-1);
-                \draw[>=latex,<-] (13.5,-1.25) -- (15.5,-1.25) node[arrow] {\(8(n-1)\) bytes};
+                \draw[leftarrow] (13.5,-1.25) -- (15.5,-1.25) node[underarrow] {\(8(n-1)\) bytes};
                 \end{tikzpicture}
             \end{figure}
 

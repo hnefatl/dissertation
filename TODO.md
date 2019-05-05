@@ -1,7 +1,5 @@
 # TODOs to write about
 
-- Need an implementation chapter section for the repository structure.
-
 - Closure implementation is slow: no surprises, it's a class and has to be designed to take arrays and lists and stuff,
   where raw languages can just manipulate heap objects directly to add arguments. JVM definitely gets in the way here.
 

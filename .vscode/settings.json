@@ -1,0 +1,24 @@
+{
+    "files.watcherExclude": {
+        "**/_minted*": true,
+        "**/__pycache__": true,
+    },
+    "files.exclude": {
+        "**/_minted*": true,
+        "**/__pycache__": true,
+        "**/*.aux": true,
+        "**/*.bbl": true,
+        "**/*.blg": true,
+        "**/*.fdb_latexmk": true,
+        "**/*.fls": true,
+        "**/*.log": true,
+        "**/*.out": true,
+        "**/*.toc": true,
+        "**/*.synctex.gz": true,
+    },
+    "python.linting.pylintEnabled": true,
+    "python.formatting.blackArgs": [
+        "--line-length=120"
+    ],
+    "python.pythonPath": "/usr/local/bin/python3.7"
+}

@@ -4,6 +4,14 @@
 
 This chapter covers various aspects of the preparation for the project, including some of the important concepts I learned about while planning the implementation of various stages, a general overview of the compiler stages, and a description of the tools, tests and general software development attitude used.
 
+\section{Requirements Analysis}
+{
+    The requirements of the project were relatively simple: the primary goal was to produce a working compiler for a small subset of Haskell, then add optimisations to meet the success criteria. There were no requirements for interacting with other systems such as a build system. It was desirable to have a comprehensive test suite to ensure correctness, and this was planned in advance.
+
+    One issue discovered during requirements analysis was that implementing even a basic subset of Haskell required support for some features which were originally listed as extensions: `simple' operations such as addition require support for functions, but also for typeclasses and Algebraic Datatypes (ADTs). This caused a reorganisation of the planned schedule during Michaelmas term.
+
+    Specifics of the software development processes used are described in Section \ref{sec:software-development-model}, and the following sections on testability and tooling.
+}
 \section{Concepts}
 {
     There are a number of key concepts that I needed to learn about in order to design and implement various stages in the compiler: these are detailed in the following subsections.
@@ -145,7 +153,6 @@ This chapter covers various aspects of the preparation for the project, includin
 }
 \section{Tools}
 {
-
     I chose to write this compiler in Haskell as it has a number of desirable features for large projects: purity ensures that components of the project cannot interact in unexpected ways, and the static type system guarantees that modifications are checked for a shallow (type-level) degree of correctness across the entire system.
 
     The natural choice of compiler for Haskell is the industry-leading Glasgow Haskell Compiler (GHC), and the Stack build system is also relatively uncontested for Haskell build tooling, ensuring reproducible builds through a strict dependency versioning system.
@@ -158,7 +165,7 @@ This chapter covers various aspects of the preparation for the project, includin
 
     The benchmarking framework was written in Python 3, and plots generated using \monospace{matplotlib}. The Java Microbenchmark Harness (JMH) was used for gathering runtime statistics about the performance of output programs. 
 }
-\section{Software Development Model}
+\section{Software Development Model}\label{sec:software-development-model}
 {
     I mainly used the waterfall development model, building each stage of the compiler sequentially and testing it both in isolation and in sequence with the previous stages. The only stage which broke this model was type inference, which required multiple refining iterations to properly implement.
 

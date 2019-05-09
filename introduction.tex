@@ -8,6 +8,8 @@ All of the major stages in a traditional optimising compiler pipeline were imple
 
 The project was a success: the compiler can translate a reasonable subset of Haskell into executable JVB that evaluates lazily, with optimisations to improve both the size of the output program and the runtime performance.
 
+\todo[inline]{Would be nice to include benefits of using my tool over an alternative, but realistically there aren't any: mine supports a smaller subset of Haskell, doesn't provide Java interop, and is slower than the others. The one plus is compilation speed, which isn't really enough to bring up.}
+
 \section{Language Choice}
 {
     Haskell is a mature purely functional programming language with lazy evaluation and static typing. It is popular in academia for its powerful type system, and has been used as inspiration for the dependently-typed language Idris\cite{Idris}. It is also seeing increasing industrial usage by companies such as Facebook\cite{FacebookHaskell}, J.P.\ Morgan\cite{JPHaskell}, and Galois\cite{GaloisHaskell}.

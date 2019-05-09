@@ -8,45 +8,33 @@
     \label{fig:compiler-layout}
 \end{figure}
 
-The compiler is comprised of a number of stages and substages, as shown in Figure \ref{fig:compiler-layout}. A brief
-overview of each stage was given in the preparation chapter (Section \ref{sec:compiler-structure}), but this chapter
-will present more in-depth descriptions. A summary is given at the end of the chapter, along with an overview of the
-code repository structure.
+The compiler is comprised of a number of stages and substages, as shown in Figure \ref{fig:compiler-layout}. A brief overview of each stage was given in the preparation chapter (Section \ref{sec:compiler-structure}), but this chapter will present more in-depth descriptions. A summary is given at the end of the chapter, along with an overview of the code repository structure.
 
 \section{Frontend}
 {
 
-    Lexing and parsing of Haskell source is performed using the
-    \monospace{haskell-src}\footnote{https://hackage.haskell.org/package/haskell-src} library, which I have modified to
-    provide some additional desirable features:
+    Lexing and parsing of Haskell source is performed using the \monospace{haskell-src}\footnote{https://hackage.haskell.org/package/haskell-src} library, which I have modified to provide some additional desirable features:
 
     \begin{itemize}
     \item
     {
-        Lexing and parsing declarations for built-in constructors like list and tuple definitions (eg.\ \haskell{data []
-        a = [] | a:[a]}).
+        Lexing and parsing declarations for built-in constructors like list and tuple definitions (eg.\ \haskell{data [] a = [] | a:[a]}).
     }
     \item
     {
 
-        Parsing data declarations without any constructors (eg.\ \haskell{data Int})\footnote{Declarations of this form
-        are invalid in the original Haskell 1998 syntax, but valid in Haskell 2010: see
-        https://wiki.haskell.org/Empty\_type}. This allows for a convenient way of introducing built-in types.
+        Parsing data declarations without any constructors (eg.\ \haskell{data Int})\footnote{Declarations of this form are invalid in the original Haskell 1998 syntax, but valid in Haskell 2010: see https://wiki.haskell.org/Empty\_type}. This allows for a convenient way of introducing built-in types.
 
     }
     \item
     {
 
-        Adding \haskell{Hashable} and \haskell{Ord} typeclass instances to the syntax AST, so that syntax trees can be
-        stored in associative containers.
+        Adding \haskell{Hashable} and \haskell{Ord} typeclass instances to the syntax AST, so that syntax trees can be stored in associative containers.
 
     }
     \end{itemize}
 
-    The syntax supported by the frontend is a strict superset of Haskell 1998 and a strict subset of Haskell 2010, but
-    my compiler does not have support for all of the features implied by the scope of the syntax. For example,
-    multi-parameter typeclasses are parsed correctly as a feature of Haskell 2010 but get rejected by the deoverloading
-    stage.
+    The syntax supported by the frontend is a strict superset of Haskell 1998 and a strict subset of Haskell 2010, but my compiler does not have support for all of the features implied by the scope of the syntax. For example, multi-parameter typeclasses are parsed correctly as a feature of Haskell 2010 but get rejected by the deoverloading stage.
 
     \begin{figure}[h]
         \begin{haskellfigure}
@@ -63,17 +51,12 @@ code repository structure.
 \section{Preprocessor}
 {
 
-    The preprocessing passes either make the Haskell source easier to deal with by later passes, or extract useful
-    information to prevent subsequent passes from needing to extract information while applying transformations.
+    The preprocessing passes either make the Haskell source easier to deal with by later passes, or extract useful information to prevent subsequent passes from needing to extract information while applying transformations.
 
     \subsection{Renaming}
     {
 
-        Haskell allows for multiple variables to share the same name within different scopes, which can increase the
-        complexity of later stages in the pipeline. For example, when typechecking the following code we might conflate
-        the two uses of \haskell{x}, and erroneously infer that they have the same type. A similar problem arises with
-        variable shadowing, when the scopes overlap. The problem also applies to any type variables present in the
-        source -- the type variable \haskell{a} is distinct between the two type signatures:
+        Haskell allows for multiple variables to share the same name within different scopes, which can increase the complexity of later stages in the pipeline. For example, when typechecking the following code we might conflate the two uses of \haskell{x}, and erroneously infer that they have the same type. A similar problem arises with variable shadowing, when the scopes overlap. The problem also applies to any type variables present in the source -- the type variable \haskell{a} is distinct between the two type signatures:
 
         \begin{haskellfigure}
         id :: a -> a
@@ -83,76 +66,40 @@ code repository structure.
         const x _ = x
         \end{haskellfigure}
 
-        Additionally, variables and type variables are in different namespaces: the same token can refer to a variable
-        and a type variable, even within the same scope. The following code is perfectly valid (but loops forever),
-        despite the same name being used for a type variable and a variable:
+        Additionally, variables and type variables are in different namespaces: the same token can refer to a variable and a type variable, even within the same scope. The following code is perfectly valid (but loops forever), despite the same name being used for a type variable and a variable:
 
         \begin{haskellfigure}
         x :: x
         x = x
         \end{haskellfigure}
 
-        To eliminate the potential for subtle bugs stemming from this feature, the renamer pass gives each distinct
-        variable/type variable in the source a unique name (in the above example, the variable \haskell{x} might be
-        renamed to \haskell{v0} and the type variable renamed to \haskell{tv0}, provided those names haven't been
-        already used).
+        To eliminate the potential for subtle bugs stemming from this feature, the renamer pass gives each distinct variable/type variable in the source a unique name (in the above example, the variable \haskell{x} might be renamed to \haskell{v0} and the type variable renamed to \haskell{tv0}, provided those names haven't been already used).
         
-        Unique variable/type variable names are generated by prefixing the current value of an incrementing counter with
-        either \haskell{v} for variable names or \haskell{tv} for type variable names. The renamer traverses the syntax
-        tree maintaining a mapping from a syntactic variable/type variable name to an associated stack of unique
-        semantic variable names (in Haskell, a \haskell{Map VariableName [UniqueVariableName]}):
+        Unique variable/type variable names are generated by prefixing the current value of an incrementing counter with either \haskell{v} for variable names or \haskell{tv} for type variable names. The renamer traverses the syntax tree maintaining a mapping from a syntactic variable/type variable name to an associated stack of unique semantic variable names (in Haskell, a \haskell{Map VariableName [UniqueVariableName]}):
 
         \begin{itemize}
-        \item When processing the binding site of a new syntactic variable (eg.\ a let binding, a lambda argument, a
-        pattern match...), a fresh semantic name is generated and pushed onto the stack associated with the syntactic
-        variable.
-        \item Whenever we leave the scope of a syntactic variable, we pop the top semantic name from the associated
-        stack.
-        \item When processing a use site of a syntactic variable, we replace it with the current top of the
-        associated stack.
+        \item When processing the binding site of a new syntactic variable (eg.\ a let binding, a lambda argument, a pattern match...), a fresh semantic name is generated and pushed onto the stack associated with the syntactic variable.
+        \item Whenever we leave the scope of a syntactic variable, we pop the top semantic name from the associated stack.
+        \item When processing a use site of a syntactic variable, we replace it with the current top of the associated stack.
         \end{itemize}
 
-        An analogously constructed mapping is maintained for type variables, but is kept separate from the variable
-        mapping: otherwise the keys can conflict in code such as \haskell{x :: x}.
+        An analogously constructed mapping is maintained for type variables, but is kept separate from the variable mapping: otherwise the keys can conflict in code such as \haskell{x :: x}.
 
-        Type constants such as \haskell{Bool} from \haskell{data Bool = False | True} and typeclass names like
-        \haskell{Num} from \haskell{class Num a where ...} are not renamed: these names are already guaranteed to be
-        unique by the syntax of Haskell, and renaming them means we need to maintain more mappings and carry more state
-        through the compiler as to what they've been renamed to.
-
+        Type constants such as \haskell{Bool} from \haskell{data Bool = False | True} and typeclass names like \haskell{Num} from \haskell{class Num a where ...} are not renamed: these names are already guaranteed to be unique by the syntax of Haskell, and renaming them means we need to maintain more mappings and carry more state through the compiler as to what they've been renamed to.
     }
     \subsection{Kind/Class Analysis}
     {
-
-        The typechecker and deoverloader require information about the kinds of any type constructors and the methods
-        provided by different classes. This is tricky to compute during typechecking as those passes traverse the AST in
-        dependency order. Instead, we just perform a traversal of the AST early in the pipeline to aggregate the
-        required information.
-
+        The typechecker and deoverloader require information about the kinds of any type constructors and the methods provided by different classes. This is tricky to compute during typechecking as those passes traverse the AST in dependency order. Instead, we just perform a traversal of the AST early in the pipeline to aggregate the required information. 
     }
     \subsection{Dependency Analysis}\label{sec:dependency-analysis}
     {
+        When typechecking, the order of processing declarations matters: we can't infer the type of \haskell{foo = bar baz} until we've inferred the types of \haskell{bar} and \haskell{baz}. The dependency analysis stage determines the order in which the typechecker should process declarations. 
 
-        When typechecking, the order of processing declarations matters: we can't infer the type of \haskell{foo = bar
-        baz} until we've inferred the types of \haskell{bar} and \haskell{baz}. The dependency analysis stage determines
-        the order in which the typechecker should process declarations.
+        We compute the sets of free/bound variables/type variables/type constants for each declaration, then construct a dependency graph -- each node is a declaration, and there's an edge from \(A\) to \(B\) if any of the bound variables/type variables/type constants at \(A\) are free in \(B\). It is important to distinguish between variables/type variables and type constants, as otherwise name conflicts could occur (as we don't rename type constants). This separation is upheld in the compiler by using different types for each, and is represented in the dependency graph below by colouring variables red and constants blue.
 
-        We compute the sets of free/bound variables/type variables/type constants for each declaration, then construct a
-        dependency graph -- each node is a declaration, and there's an edge from \(A\) to \(B\) if any of the bound
-        variables/type variables/type constants at \(A\) are free in \(B\). It is important to distinguish between
-        variables/type variables and type constants, as otherwise name conflicts could occur (as we don't rename type
-        constants). This separation is upheld in the compiler by using different types for each, and is represented in
-        the dependency graph below by colouring variables red and constants blue.
+        The strongly connected components (SCCs) of the dependency graph correspond to sets of mutually recursive declarations, and the partial order between components gives us the order to typecheck each set. The compiler uses an existing Haskell library to compute the SCCs (\texttt{containers}\footnote{\url{https://hackage.haskell.org/package/containers}}), which uses the algorithm presented by M. Sharir\cite{SCC}.
 
-        The strongly connected components (SCCs) of the dependency graph correspond to sets of mutually recursive
-        declarations, and the partial order between components gives us the order to typecheck each set. The compiler
-        uses an existing Haskell library to compute the SCCs
-        (\texttt{containers}\footnote{\url{https://hackage.haskell.org/package/containers}}), which uses the algorithm
-        presented by M. Sharir\cite{SCC}.
-
-        For example, from the dependency graph in Figure \ref{fig:dependency-graph} we know that: we need to typecheck
-        \(d_3\), \(d_4\), and \(d_5\) together as they're contained within the same strongly-connected component so are
-        mutually recursive; we have to typecheck \(d_2\) last, after both other components.
+        For example, from the dependency graph in Figure \ref{fig:dependency-graph} we know that: we need to typecheck \(d_3\), \(d_4\), and \(d_5\) together as they're contained within the same strongly-connected component so are mutually recursive; we have to typecheck \(d_2\) last, after both other components.
 
         \begin{figure}[h]
         \centering
@@ -170,20 +117,16 @@ code repository structure.
         \end{subfigure}
         \caption
         {
-            Code labelled with declaration numbers, and the corresponding dependency graph. Variables are
-            in red text, type constants in blue. Strongly connected components are highlighted.
+            Code labelled with declaration numbers, and the corresponding dependency graph. Variables are in red text, type constants in blue. Strongly connected components are highlighted.
         }
         \label{fig:dependency-graph}
         \end{figure}
 
-        Typechecking declarations within the same component can proceed in an arbitrary order, we just need to ensure
-        that the all of the type variables for the names bound by the declarations are available while processing each
-        individual declaration.
+        Typechecking declarations within the same component can proceed in an arbitrary order, we just need to ensure that the all of the type variables for the names bound by the declarations are available while processing each individual declaration.
 
         \paragraph*{Special cases due to Typeclasses}
 
-        This process works for languages without ad-hoc overloading, like SML. However, in Haskell there are some
-        complications introduced by typeclasses:
+        This process works for languages without ad-hoc overloading, like SML. However, in Haskell there are some complications introduced by typeclasses:
 
         \begin{itemize}
         \item
@@ -200,40 +143,27 @@ code repository structure.
                 x + y = ...
             \end{haskellfigure}
 
-            Here the multiple declarations of \haskell{(+)} don't conflict: this is a valid program. However, the
-            following program does have conflicting variables, as \haskell{x} is not a typeclass member and is not
-            declared inside an \haskell{instance} declaration:
+            Here the multiple declarations of \haskell{(+)} don't conflict: this is a valid program. However, the following program does have conflicting variables, as \haskell{x} is not a typeclass member and is not declared inside an \haskell{instance} declaration:
 
             \begin{haskellfigure}
             x = True
             x = False
             \end{haskellfigure}
 
-            These declaration conflicts can be expressed as a binary symmetric predicate on declarations, as presented
-            in Figure \ref{fig:conflict-grid}, where:
+            These declaration conflicts can be expressed as a binary symmetric predicate on declarations, as presented in Figure \ref{fig:conflict-grid}, where:
 
             \begin{itemize}
             \item
             {
-
-                \monospace{Sym #\(x\)#} and \monospace{Type #\(x\)#} represent top-level declaration and type-signature
-                declarations for a symbol \(x\), like \haskell{#\(x\)# = True} and \haskell{#\(x\)# :: Bool}.
-
+                \monospace{Sym #\(x\)#} and \monospace{Type #\(x\)#} represent top-level declaration and type-signature declarations for a symbol \(x\), like \haskell{#\(x\)# = True} and \haskell{#\(x\)# :: Bool}.
             }
             \item
             {
-                
-                \monospace{ClassSym #\(x\)# #\(c\)#} and \monospace{ClassType #\(x\)# #\(c\)#} represent \monospace{Sym
-                #\(x\)#} and \monospace{Type #\(x\)#} inside the declaration for a class \(c\), like \haskell{class
-                #\(c\)# where { #\(x\)# = True ; #\(x\)# :: Bool }}.
-
+                \monospace{ClassSym #\(x\)# #\(c\)#} and \monospace{ClassType #\(x\)# #\(c\)#} represent \monospace{Sym #\(x\)#} and \monospace{Type #\(x\)#} inside the declaration for a class \(c\), like \haskell{class #\(c\)# where { #\(x\)# = True ; #\(x\)# :: Bool }}.
             }
             \item
             {
-
-                \monospace{InstSym #\(x\)# #\(c\)# #\(t\)#} represents a \monospace{Sym #\(x\)#} inside the declaration
-                for a class instance \(c\;t\), like \haskell{instance #\(c\)# #\(t\)# where { #\(x\)# = True }}.
-
+                \monospace{InstSym #\(x\)# #\(c\)# #\(t\)#} represents a \monospace{Sym #\(x\)#} inside the declaration for a class instance \(c\;t\), like \haskell{instance #\(c\)# #\(t\)# where { #\(x\)# = True }}.
             }
             \end{itemize}
 
@@ -256,30 +186,17 @@ code repository structure.
             \label{fig:conflict-grid}
             \end{figure}
 
-            Using this table we can see that the multiple declarations for \haskell{(+)} in the example above are
-            \monospace{InstSym (+) Num Int} and \monospace{InstSym (+) Num Float} so do not conflict, while the
-            declarations for \haskell{x} above are both \monospace{Sym x} so do conflict.
-
+            Using this table we can see that the multiple declarations for \haskell{(+)} in the example above are \monospace{InstSym (+) Num Int} and \monospace{InstSym (+) Num Float} so do not conflict, while the declarations for \haskell{x} above are both \monospace{Sym x} so do conflict.
         }
         \item
         {
-
-            Another complication introduced by typeclasses is that variable declarations such as \haskell{id = \\x -> x}
-            are usually treated as being the unique binding definition of \haskell{id}, and any other uses within the
-            same level of scope must be free rather than binding (otherwise we have conflicting definitions).
+            Another complication introduced by typeclasses is that variable declarations such as \haskell{id = \\x -> x} are usually treated as being the unique binding definition of \haskell{id}, and any other uses within the same level of scope must be free rather than binding (otherwise we have conflicting definitions).
             
-            However, we treat binding declarations inside \haskell{instance} declarations as actually being free uses
-            rather than binding uses, so that the instance declaration forms a dependence on the class declaration where
-            the variables are bound, ensuring it is typechecked first.
-
+            However, we treat binding declarations inside \haskell{instance} declarations as actually being free uses rather than binding uses, so that the instance declaration forms a dependence on the class declaration where the variables are bound, ensuring it is typechecked first.
         }
         \item\label{sec:dependencies-syntactic-semantic}
         {
-
-            The dependencies generated by this technique are \textit{syntactic}, not \textit{semantic}: this is a subtle
-            but very important difference. The use of any ad-hoc overloaded variable generates dependencies on the class
-            declaration that introduced the variable, but not the specific instance of the class that provides the
-            definition of the variable used.
+            The dependencies generated by this technique are \textit{syntactic}, not \textit{semantic}: this is a subtle but very important difference. The use of any ad-hoc overloaded variable generates dependencies on the class declaration that introduced the variable, but not the specific instance of the class that provides the definition of the variable used.
 
             \begin{haskellfigure}
             class Foo a where
@@ -290,17 +207,9 @@ code repository structure.
                 foo xs = all foo xs
             \end{haskellfigure}
 
-            The declaration of \haskell{foo} in \haskell{instance Foo [Bool]} semantically depends on the specific
-            overload of \haskell{foo} defined in \haskell{instance Foo Bool}, and yet no dependency will be generated
-            between the two instances as neither declaration binds \haskell{foo} (\haskell{foo} is treated as being free
-            within the declarations as described above): they will only generate dependencies to \haskell{class Foo a}
-            (and to the declaration of \haskell{Bool} and \haskell{all}).
+            The declaration of \haskell{foo} in \haskell{instance Foo [Bool]} semantically depends on the specific overload of \haskell{foo} defined in \haskell{instance Foo Bool}, and yet no dependency will be generated between the two instances as neither declaration binds \haskell{foo} (\haskell{foo} is treated as being free within the declarations as described above): they will only generate dependencies to \haskell{class Foo a} (and to the declaration of \haskell{Bool} and \haskell{all}).
 
-            Computing the semantic dependencies is too complicated to be done in this pass, so the problem is left and
-            instead solved during the typechecking stage. A full explanation is given later, but the approach used is to
-            defer typechecking instance declarations until a different declaration requires the information, and then
-            attempt to typecheck the instance declaration then, in a Just-In-Time manner.
-
+            Computing the semantic dependencies is too complicated to be done in this pass, so the problem is left and instead solved during the typechecking stage. A full explanation is given later, but the approach used is to defer typechecking instance declarations until a different declaration requires the information, and then attempt to typecheck the instance declaration then, in a Just-In-Time manner.
         }
         \end{itemize}
 
@@ -310,12 +219,9 @@ code repository structure.
         \item Dependency analysis is required by typechecking in order to process declarations in the right order.
         \item
         {
-
-            The ordering between strongly connected components of the dependency graph corresponds to the order in which
-            to process declarations, to ensure that all dependent declarations have been processed already.
+            The ordering between strongly connected components of the dependency graph corresponds to the order in which to process declarations, to ensure that all dependent declarations have been processed already.
             
             The components themselves correspond to mutually recursive functions that need to be typechecked `together'.
-
         }
         \item Typeclasses introduce some interesting special cases to the otherwise intuitive process.
         \end{itemize}
@@ -323,20 +229,14 @@ code repository structure.
 }
 \section{Type Checker}
 {
-
-    Type inference and checking is the most complex part of the compiler pipeline. The type system implemented is
-    approximately System \(\text{F}_\omega\) (the polymorphically typed lambda calculus with type constructors) along
-    with algebraic data types, and type classes to provide ad-hoc overloading. The approximation is due to a number of
-    alterations made by the Haskell Report to ensure that type inference is decidable.
+    Type inference and checking is the most complex part of the compiler pipeline. The type system implemented is approximately System \(\text{F}_\omega\) (the polymorphically typed lambda calculus with type constructors) along with algebraic data types, and type classes to provide ad-hoc overloading. The approximation is due to a number of alterations made by the Haskell Report to ensure that type inference is decidable.
     
-    This is a subset of the type system used by GHC (System \(\text{F}_\text{C}\)), as that compiler provides extensions
-    such as GADTs and type families requiring a more complex type system.
+    This is a subset of the type system used by GHC (System \(\text{F}_\text{C}\)), as that compiler provides extensions such as GADTs and type families requiring a more complex type system.
 
     The datatypes used to represent types are as follows:
 
     \subsection{Definition of Types}
     {
-
         \begin{haskellfigure}
         data TypeVariable = TypeVariable TypeVariableName Kind
         data TypeConstant = TypeConstant TypeVariableName Kind
@@ -349,13 +249,9 @@ code repository structure.
                     | KindFun Kind Kind
         \end{haskellfigure}
 
-        Type variables have an associated kind\footnote{Kinds were described in the Preparation chapter, Section
-        \ref{sec:kinds}.} to allow for type constraints such as \haskell{pure :: Functor #\(f\)# => #\(\alpha\rightarrow
-        f \alpha\)#}, in which \haskell{f} has kind \(*\rightarrow*\).
+        Type variables have an associated kind\footnote{Kinds were described in the Preparation chapter, Section \ref{sec:kinds}.} to allow for type constraints such as \haskell{pure :: Functor #\(f\)# => #\(\alpha\rightarrow f \alpha\)#}, in which \haskell{f} has kind \(*\rightarrow*\).
 
-        A `simple type' is then represented as any tree of applications between type variables and type constants: these
-        are types such as \haskell{Int -> Maybe Bool}. Haskell has more complex types, however: overloaded and
-        polymorphic types.
+        A `simple type' is then represented as any tree of applications between type variables and type constants: these are types such as \haskell{Int -> Maybe Bool}. Haskell has more complex types, however: overloaded and polymorphic types.
 
         \begin{haskellfigure}
         data TypePredicate = IsInstance ClassName Type
@@ -368,108 +264,47 @@ code repository structure.
         type QuantifiedSimpleType = Quantified Type
         \end{haskellfigure}
 
-        A qualified/overloaded type is a simple type with type constraints/predicates attached, such as \haskell{Eq
-        #\(\alpha\)# => #\(\alpha\rightarrow\alpha\rightarrow\)# Bool} (the type constraint here being just \haskell{Eq
-        #\(\alpha\)#}). The type constraints act as restrictions on the valid types that can fulfil the type variable,
-        or equivalently predicates which must hold on the variables: the type signature is only valid for \(\alpha\)
-        that are instance of the \haskell{Eq} typeclass.
-    
-        A quantified/polymorphic type is an overloaded type with a set of type variables that are universally quantified
-        over the type, meaning they must later be instantiated to a specific type/type variable (universally quantified
-        vaariables are `placeholder' variables). Haskell type signatures are implicitly quantified over all the
-        contained type variables, but some extensions add explicit syntax: \haskell{id ::
-        #\(\alpha\rightarrow\alpha\)#}, \haskell{id :: forall #\(\alpha\)#. #\(\alpha\rightarrow\alpha\)#}, and
-        \haskell{id :: #\(\forall\alpha\)#. #\(\alpha\rightarrow\alpha\)#} all mean the same.
+        A qualified/overloaded type is a simple type with type constraints/predicates attached, such as \haskell{Eq #\(\alpha\)# => #\(\alpha\rightarrow\alpha\rightarrow\)# Bool} (the type constraint here being just \haskell{Eq #\(\alpha\)#}). The type constraints act as restrictions on the valid types that can fulfil the type variable, or equivalently predicates which must hold on the variables: the type signature is only valid for \(\alpha\) that are instance of the \haskell{Eq} typeclass. 
 
-        During type inference, types are almost always polymorphic and often overloaded (\haskell{(==) :: forall
-        #\(\alpha\)#. Eq #\(\alpha\)# => #\(\alpha\rightarrow\alpha\rightarrow\)# Bool}, \haskell{(+) :: forall
-        #\(\alpha\)#. Num #\(\alpha\)# => #\(\alpha\rightarrow\alpha\rightarrow\alpha\)#}, \haskell{head ::
-        [#\(\alpha\)#] -> #\(\alpha\)#}, ...). After deoverloading (Section \ref{sec:deoverloading}), types are never
-        overloaded. This difference is enforced by using \haskell{QuantifiedType} and \haskell{QuantifiedSimpleType}
-        respectively.
+        A quantified/polymorphic type is an overloaded type with a set of type variables that are universally quantified over the type, meaning they must later be instantiated to a specific type/type variable (universally quantified variables are `placeholder' variables). Haskell type signatures are implicitly quantified over all the contained type variables, but some extensions add explicit syntax: \haskell{id :: #\(\alpha\rightarrow\alpha\)#}, \haskell{id :: forall #\(\alpha\)#. #\(\alpha\rightarrow\alpha\)#}, and \haskell{id :: #\(\forall\alpha\)#. #\(\alpha\rightarrow\alpha\)#} all mean the same.
 
-        Having covered the grammar used to described types within the typechecker, we now move on to the actual
-        typechecking process. In the following sections, `declaration' is assumed to refer to simple pattern binding
-        declarations like \haskell{x = f y} unless otherwise mentioned: other declaration types are either easy to
-        extend these approaches to, don't play much role in typechecking, or are sufficiently complicated that they are
-        omitted for brevity.
+        During type inference, types are almost always polymorphic and often overloaded (\haskell{(==) :: forall #\(\alpha\)#. Eq #\(\alpha\)# => #\(\alpha\rightarrow\alpha\rightarrow\)# Bool}, \haskell{(+) :: forall #\(\alpha\)#. Num #\(\alpha\)# => #\(\alpha\rightarrow\alpha\rightarrow\alpha\)#}, \haskell{head :: [#\(\alpha\)#] -> #\(\alpha\)#}, ...). After deoverloading (Section \ref{sec:deoverloading}), types are never overloaded. This difference is enforced by using \haskell{QuantifiedType} and \haskell{QuantifiedSimpleType} respectively.
 
+        Having covered the grammar used to described types within the typechecker, we now move on to the actual typechecking process. In the following sections, `declaration' is assumed to refer to simple pattern binding declarations like \haskell{x = f y} unless otherwise mentioned: other declaration types are either easy to extend these approaches to, don't play much role in typechecking, or are sufficiently complicated that they are omitted for brevity.
     }
     \todo[inline]{Section giving overview of substitution and unification?}
     \subsection{Type Inference}
     {
-
-        The implementation is inspired by the approach given by Mark P. Jones in \cite{THIH} and uses similar rules as
-        the Hindley-Milner (HM) type inference algorithm. There are three passes over the source AST, each of which
-        traverses the AST in dependency order as previously described in Section \ref{sec:dependency-analysis}.
+        The implementation is inspired by the approach given by Mark P. Jones in \cite{THIH} and uses similar rules as the Hindley-Milner (HM) type inference algorithm. There are three passes over the source AST, each of which traverses the AST in dependency order as previously described in Section \ref{sec:dependency-analysis}.
 
         \begin{enumerate}
         \item
         {
+            The first pass tags each subexpression with a type variable, then uses rules similar to the HM inference rules to infer the value of the type variable, usually using the type variables of subterms.
             
-            The first pass tags each subexpression with a type variable, then uses rules similar to the HM inference
-            rules to infer the value of the type variable, usually using the type variables of subterms.
-            
-            Overloaded functions present a difference from the HM rules, as some expressions generate typeclass
-            constraints on the type variables involved: using an overloaded function like \haskell{(+)} will first
-            require instantiating its polymorphic type to an overloaded type
-            (\(\forall\alpha.\;\text{Num}\alpha\Rightarrow\alpha\rightarrow\alpha\rightarrow\alpha\) to
-            \(\text{Num}\beta\Rightarrow\beta\rightarrow\beta\rightarrow\beta\), where \(\beta\) is a fresh unique type
-            variable), then moving the constraints from the type to the set of constraints built up while traversing
-            this declaration to get just \(\beta\rightarrow\beta\rightarrow\beta\). This is the ground type that's
-            unified with the type variable used to tag the use of \haskell{(+)}, and the type constraints are stored for
-            use after finishing traversing the declaration.
+            Overloaded functions present a difference from the HM rules, as some expressions generate typeclass constraints on the type variables involved: using an overloaded function like \haskell{(+)} will first require instantiating its polymorphic type to an overloaded type (\(\forall\alpha.\;\text{Num}\alpha\Rightarrow\alpha\rightarrow\alpha\rightarrow\alpha\) to \(\text{Num}\beta\Rightarrow\beta\rightarrow\beta\rightarrow\beta\), where \(\beta\) is a fresh unique type variable), then moving the constraints from the type to the set of constraints built up while traversing this declaration to get just \(\beta\rightarrow\beta\rightarrow\beta\). This is the ground type that's unified with the type variable used to tag the use of \haskell{(+)}, and the type constraints are stored for use after finishing traversing the declaration.
 
-            After a pattern binding declaration has been fully traversed, types are generated for all the variable names
-            bound by the patterns. This involves adding explicit quantifiers and constraints to the simple type inferred
-            for the top-level expression on the right-hand side of the binding. All type variables within the simple
-            type that aren't already in scope from eg.\ a class definition are added as universally quantified
-            variables, and any constraints generated during processing the declaration involving type variables free in
-            the simple type, are added as the qualifiers to the type.
-
+            After a pattern binding declaration has been fully traversed, types are generated for all the variable names bound by the patterns. This involves adding explicit quantifiers and constraints to the simple type inferred for the top-level expression on the right-hand side of the binding. All type variables within the simple type that aren't already in scope from eg.\ a class definition are added as universally quantified variables, and any constraints generated during processing the declaration involving type variables free in the simple type, are added as the qualifiers to the type.
         }
         \item
         {
-
-            The second pass simply traverses the AST again and updates the type variables used to tag each with the
-            final expression type generated by the unification during the first pass.
+            The second pass simply traverses the AST again and updates the type variables used to tag each with the final expression type generated by the unification during the first pass.
             
-            This can't be done efficiently during the first pass: consider the expression \haskell{((+)#\(^{t_1}\)#
-            x#\(^{t_2}\)#)#\(^{t_3}\)#} where the \(t_i\) are type variables tagging the expressions. Assume we've
-            inferred that \haskell{x :: #\(\alpha\)#} and \haskell{(+) ::
-            #\(\beta\rightarrow\beta\rightarrow\beta\)#} as described above, and that we've unified \(t_1\) and
-            \(t_2\) with these types respectively. Inferring the type of the overall expression would proceed by
-            unifying the type of the first formal argument of the function (\(\beta\)) with the first actual
-            argument (\(\alpha\)), and then using this substitution to type the return value of the function as
-            \(\alpha\rightarrow\alpha\rightarrow\alpha\), which we can now unify with \(t_3\). Had we previously
-            updated the subterm's tags to be their inferred concrete types we'd now have to update them again:
-            \(\beta\) is no longer used as it's been unified with \(\alpha\), but our subterms may still contains
-            uses of it.
-
+            This can't be done efficiently during the first pass: consider the expression \haskell{((+)#\(^{t_1}\)# x#\(^{t_2}\)#)#\(^{t_3}\)#} where the \(t_i\) are type variables tagging the expressions. Assume we've inferred that \haskell{x :: #\(\alpha\)#} and \haskell{(+) :: #\(\beta\rightarrow\beta\rightarrow\beta\)#} as described above, and that we've unified \(t_1\) and \(t_2\) with these types respectively. Inferring the type of the overall expression would proceed by unifying the type of the first formal argument of the function (\(\beta\)) with the first actual argument (\(\alpha\)), and then using this substitution to type the return value of the function as \(\alpha\rightarrow\alpha\rightarrow\alpha\), which we can now unify with \(t_3\). Had we previously updated the subterm's tags to be their inferred concrete types we'd now have to update them again: \(\beta\) is no longer used as it's been unified with \(\alpha\), but our subterms may still contains uses of it.
         }
         \item
         {
-
-            The third pass checks that any user-provided type signatures (such as the user explicitly annotating
-            \haskell{5 :: Float}) are valid compared to what was actually inferred: if the user-provided tag is more
-            general than the inferred tag, we reject the program.
+            The third pass checks that any user-provided type signatures (such as the user explicitly annotating \haskell{5 :: Float}) are valid compared to what was actually inferred: if the user-provided tag is more general than the inferred tag, we reject the program. 
 
             This could be done during the second pass, but was kept as a distinct pass for clarity in the code.
-
         }
         \end{enumerate}
 
-        These three passes describe the inner workings of the component, but there are still a number of tricky
-        edge-cases to navigate:
+        These three passes describe the inner workings of the component, but there are still a number of tricky edge-cases to navigate:
 
         \subsubsection{Restricted Polymorphism}
         {
-
-            One departure from conventional polymorphic type systems is that Haskell's type system restricts
-            polymorphism for some terms: let-bound variables are polymorphic over all their free type variables, while
-            function parameters are never polymorphic. In practice, this means that in the code below, \haskell{f ::
-            #\(\forall \alpha.\;\alpha \rightarrow a\)#} whereas \haskell{g :: #\(\alpha \rightarrow \alpha\)#}. The
-            difference in semantics ensures that type inference remains decidable.
+            One departure from conventional polymorphic type systems is that Haskell's type system restricts polymorphism for some terms: let-bound variables are polymorphic over all their free type variables, while function parameters are never polymorphic. In practice, this means that in the code below, \haskell{f :: #\(\forall \alpha.\;\alpha \rightarrow a\)#} whereas \haskell{g :: #\(\alpha \rightarrow \alpha\)#}. The difference in semantics ensures that type inference remains decidable. 
 
             \begin{haskellfigure}
             let f x = x in const (f True) (f 1) :: Bool -- This is fine
@@ -478,120 +313,47 @@ code repository structure.
         }
         \subsubsection{Typeclass Order}
         {
-
-            A tricky part of the typechecking process is dealing with typeclasses, as dependency order isn't
-            semantically accurate for typeclass instance declarations: the problem is detailed in Section
-            \ref{sec:dependencies-syntactic-semantic}.
+            A tricky part of the typechecking process is dealing with typeclasses, as dependency order isn't semantically accurate for typeclass instance declarations: the problem is detailed in Section \ref{sec:dependencies-syntactic-semantic}.
             
-            To handle the potential issues, such declarations are processed in a lazy manner. If a declaration requires
-            an instance of a typeclass in order to typecheck then that typeclass is typechecked immediately, and all
-            remaining instance declarations are processed after non-instance declarations have been processed.
-
+            To handle the potential issues, such declarations are processed in a lazy manner. If a declaration requires an instance of a typeclass in order to typecheck then that typeclass is typechecked immediately, and all remaining instance declarations are processed after non-instance declarations have been processed.
         }
         \subsubsection{The Ambiguity Check}
         {
+            There is a type-system correctness check called the `ambiguity check', which ensures that for any variable with overloaded type, at its use-site the type variables are either resolved to a ground type such as \haskell{Int} or are exposed in the type of the expression they're being used in. This prevents programs which have ambiguous semantics (multiple possible runtime behaviours) from being reported as valid (this issue, along with an approach for fixing it called defaulting, is described in Section 11.5.1 of `Typing Haskell in Haskell' \cite{THIH}). 
 
-            There is a type-system correctness check called the `ambiguity check', which ensures that for any variable
-            with overloaded type, at its use-site the type variables are either resolved to a ground type such as
-            \haskell{Int} or are exposed in the type of the expression they're being used in. This prevents programs
-            which have ambiguous semantics (multiple possible runtime behaviours) from being reported as valid (this
-            issue, along with an approach for fixing it called defaulting, is described in Section 11.5.1 of `Typing
-            Haskell in Haskell' \cite{THIH}).
-            
-            My compiler does not implement this check, which allows some programs to be accepted by the compiler which
-            then crash at runtime (such cases can often be fixed by adding explicit type signatures). This feature was
-            omitted in order to spend development time on the later stages of the compiler.
+            My compiler does not implement this check, which allows some programs to be accepted by the compiler which then crash at runtime (such cases can often be fixed by adding explicit type signatures). This feature was omitted in order to spend development time on the later stages of the compiler.
 
             \todo[inline]{Check they actually crash at runtime: I feel like it should get caught in deoverloading...}
-
         }
         \subsubsection{Defaulting}
         {
+            As a defence against the issues detected by the ambiguity check, and to make Haskell code slightly cleaner, the Haskell Report defines a feature called `defaulting'\footnote{\url{https://www.haskell.org/onlinereport/decls.html\#sect4.3.4}} which allows for ambiguous type variables appearing in \haskell{Num} constraints to be defaulted to a type specified on a per-module level. 
 
-            As a defence against the issues detected by the ambiguity check, and to make Haskell code slightly cleaner,
-            the Haskell Report defines a feature called
-            `defaulting'\footnote{\url{https://www.haskell.org/onlinereport/decls.html\#sect4.3.4}} which allows for
-            ambiguous type variables appearing in \haskell{Num} constraints to be defaulted to a type specified on a
-            per-module level.
+            This means that in the expression \haskell{const 1 2}, the type of \haskell{2} is defaulted to \haskell{Integer}, rather than raising an error.
 
-            This means that in the expression \haskell{const 1 2}, the type of \haskell{2} is defaulted to
-            \haskell{Integer}, rather than raising an error.
-
-            This feature was not implemented, as the time taken to implement it was expected to be better spent
-            elsewhere. This is a non-critical feature, as explicit type signatures can always be added (eg.\
-            \haskell{const 1 (2 :: Int)}).
-
+            This feature was not implemented, as the time taken to implement it was expected to be better spent elsewhere. This is a non-critical feature, as explicit type signatures can always be added (eg.\ \haskell{const 1 (2 :: Int)}).
         }
         \subsubsection{Improvements}
         {
-
-            An improvement to the current approach would be to implement the OutsideIn(X) framework given by Vytiniotis
-            et al \cite{OutsideIn}. This framework can work with Hindley-Milner type inference to handle more complex
-            constraints than the current implementation, allowing support for GADTs and type families and handling type
-            classes more flexibly than the current implementation.
-
+            An improvement to the current approach would be to implement the OutsideIn(X) framework given by Vytiniotis et al \cite{OutsideIn}. This framework can work with Hindley-Milner type inference to handle more complex constraints than the current implementation, allowing support for GADTs and type families and handling type classes more flexibly than the current implementation.
         }
 
         \vspace{0.5cm}
-        Having completed the three passes of type inference and checking, and handling the edge cases associated with
-        typeclasses, the output of the type inference component is a Haskell AST where expressions are tagged with their
-        (possibly overloaded) types. This forms the input for the final component before the compiler begins lowering
-        the program into intermediate languages.
-
+        Having completed the three passes of type inference and checking, and handling the edge cases associated with typeclasses, the output of the type inference component is a Haskell AST where expressions are tagged with their (possibly overloaded) types. This forms the input for the final component before the compiler begins lowering the program into intermediate languages. 
     }
     \subsection{Deoverloader}\label{sec:deoverloading}
     {
-
-        The deoverloading stage performs a translation which implements typeclasses using a technique named dictionary
-        passing. This produces an AST tagged with types that no longer have type contexts.
+        The deoverloading stage performs a translation which implements typeclasses using a technique named dictionary passing. This produces an AST tagged with types that no longer have type contexts.
 
         \subsubsection{Dictionary Passing}
         {
+            The expression \haskell{1 + 2} has type \haskell{Num a => a}, where the expression is essentially `overloaded' on the type of \haskell{a} (as \haskell{(+)} is overloaded). This overloading can be implemented by adding extra parameters (`dictionaries') to all overloaded functions, which provide the implementation of any overloaded operators such as \haskell{(+)}. This is similar to virtual method tables in object oriented languages, except the v-table is being passed as an extrinsic argument, rather than being intrinsic to the object being operated on.
 
-            The expression \haskell{1 + 2} has type \haskell{Num a => a}, where the expression is essentially
-            `overloaded' on the type of \haskell{a} (as \haskell{(+)} is overloaded). This overloading can be
-            implemented by adding extra parameters (`dictionaries') to all overloaded functions, which provide the
-            implementation of any overloaded operators such as \haskell{(+)}. This is similar to virtual method tables
-            in object oriented languages, except the v-table is being passed as an extrinsic argument, rather than being
-            intrinsic to the object being operated on.
-
-            The approach used here is to perform a source-to-source transformation on the AST that replaces
-            typeclass/instance declarations with datatype/value/function declarations. There are three parts to the
-            transformation:
+            The approach used here is to perform a source-to-source transformation on the AST that replaces typeclass/instance declarations with datatype/value/function declarations. There are three parts to the transformation:
             
             \begin{enumerate}
             \item
             {
-
-                Each typeclass is replaced by a datatype which acts as the \textbf{type} of the v-tables for that class.
-
-                Further, each function defined by a typeclass is made into a top-level function that essentially
-                extracts the implementation function from the passed dictionary (equivalent to extracting a function
-                pointer entry from the method table).
-
-                \begin{figure}[H]
-                \centering
-                \begin{subfigure}[t]{0.35\textwidth}
-                \begin{haskellfigure}
-                class Eq a where
-                    (==), (/=) :: a -> a -> Bool
-                \end{haskellfigure}
-                \end{subfigure}
-                \hspace{5mm}
-                \begin{subfigure}[t]{0.55\textwidth}
-                \begin{haskellfigure}
-                data Eq a = Eq (a -> a -> Bool) (a -> a -> Bool)
-
-                (==), (/=) :: Eq a -> a -> a -> Bool
-                (==) (Eq eq _) = eq
-                (/=) (Eq _ neq) = neq
-                \end{haskellfigure}
-                \end{subfigure}
-                \end{figure}
-            }
-            \item
-            {
-
                 Each instance declaration is replaced by a value of the corresponding class' datatype, providing an
                 implementation of a v-table that can be passed around. Each of these values is a dictionary that can be
                 passed to an overloaded function.
@@ -617,13 +379,9 @@ code repository structure.
             \item
             {
 
-                Any call-site of a function with an overloaded type needs to be passed the relevant dictionary: for
-                example, \haskell{x = 1 + 2 :: Int} is translated into \haskell{x = (+) dNumInt 1 2 :: Int}.
+                Any call-site of a function with an overloaded type needs to be passed the relevant dictionary: for example, \haskell{x = 1 + 2 :: Int} is translated into \haskell{x = (+) dNumInt 1 2 :: Int}.
 
-                Similarly, any definition of a symbol which has an overloaded type needs to be extended with parameters
-                to carry the implementation of all the typeclass constraints, in order to pass them down to the
-                subexpressions within the function which require the implementations. Quite pleasingly, this replaces
-                the \haskell{=>} symbol with \haskell{->}.
+                Similarly, any definition of a symbol which has an overloaded type needs to be extended with parameters to carry the implementation of all the typeclass constraints, in order to pass them down to the subexpressions within the function which require the implementations. Quite pleasingly, this replaces the \haskell{=>} symbol with \haskell{->}.
 
                 \begin{figure}[H]
                 \centering
@@ -664,16 +422,11 @@ code repository structure.
             }
             \end{enumerate}
 
-            These three steps can be performed in a single pass over the type-tagged Haskell AST, thanks to the
-            information gathered in previous passes and the type annotations.
+            These three steps can be performed in a single pass over the type-tagged Haskell AST, thanks to the information gathered in previous passes and the type annotations.
 
-            This approach can be easily extended to typeclasses with `superclasses' (by storing superclass dictionaries
-            inside subclass dictionaries) and instance declarations with contexts (by making functions that construct
-            dictionaries from other dictionaries), such as those shown in Figure \ref{fig:instance-context}.
+            This approach can be easily extended to typeclasses with `superclasses' (by storing superclass dictionaries inside subclass dictionaries) and instance declarations with contexts (by making functions that construct dictionaries from other dictionaries), such as those shown in Figure \ref{fig:instance-context}. 
 
-            My compiler does not support these uses as the development focus at this stage was on reaching a minimal
-            working subset of Haskell. However, the existing implementation demonstrates that support is definitely
-            achievable.
+            My compiler does not support these uses as the development focus at this stage was on reaching a minimal working subset of Haskell. However, the existing implementation demonstrates that support is definitely achievable.
 
             \begin{figure}[h]
             \centering
@@ -700,25 +453,16 @@ code repository structure.
 }
 \section{Lowering and Intermediate Languages}
 {
-
-    There are two intermediate languages within the compiler, imaginatively named Intermediate Languages A and B
-    (ILA and ILB respectively). There is also a minor language named ILA-Administrative Normal Form (ILA-ANF), which
-    is simply a subset of ILA that helps restrict the terms to those in Administrative Normal Form (ANF).
+    There are two intermediate languages within the compiler, imaginatively named Intermediate Languages A and B (ILA and ILB respectively). There is also a minor language named ILA-Administrative Normal Form (ILA-ANF), which is simply a subset of ILA that helps restrict the terms to those in Administrative Normal Form (ANF).
 
     \todo[inline]{For each: why needed, BNF grammar, strengths. Probably don't go into details of translation?}
 
     \subsection{Intermediate Language A}
     {
-
-        ILA is a subset of GHC's Core intermediate language, removing terms which are used for advanced language
-        features like GADTs, as they are not supported by this compiler. Haskell 98 has hundreds of node types in
-        its
-        AST\footnote{\url{https://hackage.haskell.org/package/haskell-src/docs/Language-Haskell-Syntax.html}\todo[inline]{Find
-        version-independent link}}, whereas ILA has far fewer: this makes it far easier to transform.
+        ILA is a subset of GHC's Core intermediate language, removing terms which are used for advanced language features like GADTs, as they are not supported by this compiler. Haskell 98 has hundreds of node types in its AST\footnote{\url{https://hackage.haskell.org/package/haskell-src/docs/Language-Haskell-Syntax.html}}, whereas ILA has far fewer: this makes it far easier to transform.
 
         \subsubsection{Definition}
         {
-
             \todo[inline]{Give BNF instead of Haskell ADTs?}
             \begin{haskellfigure}
             data Expr = Var VariableName Type
@@ -741,18 +485,11 @@ code repository structure.
                            | Rec (Map VariableName a)
             \end{haskellfigure}
 
-            A Haskell program is lowered by this pass into a list of \haskell{Binding Expr}: a list of recursive or
-            non-recursive bindings of expressions to variables.
+            A Haskell program is lowered by this pass into a list of \haskell{Binding Expr}: a list of recursive or non-recursive bindings of expressions to variables.
 
-            One notable feature of ILA is that it carries type information: leaf nodes such as \monospace{Var} are
-            tagged with a type. This is inspired by GHC's Core IL, which is fully explicitly typed under a variant
-            of System F, allowing for `core linting' passes in-between transformations to ensure they maintain
-            type-correctness. The type annotations on ILA are not sufficient for such complete typechecking, but do
-            allow for some sanity checks and are necessary for lower stages of the compiler such as code generation.
+            One notable feature of ILA is that it carries type information: leaf nodes such as \monospace{Var} are tagged with a type. This is inspired by GHC's Core IL, which is fully explicitly typed under a variant of System F, allowing for `core linting' passes in-between transformations to ensure they maintain type-correctness. The type annotations on ILA are not sufficient for such complete typechecking, but do allow for some sanity checks and are necessary for lower stages of the compiler such as code generation.
 
-            ILA is still quite high-level, so many of the language constructs have similar semantics to their
-            Haskell counterparts. The main benefit in this lowering pass is to collapse redundant Haskell syntax
-            (syntactic sugar) into a smaller grammar.
+            ILA is still quite high-level, so many of the language constructs have similar semantics to their Haskell counterparts. The main benefit in this lowering pass is to collapse redundant Haskell syntax (syntactic sugar) into a smaller grammar.
 
             Most of these constructors have familiar usages, but some are more subtle:
 
@@ -760,68 +497,39 @@ code repository structure.
             \item \monospace{Con} represents a data constructor such as \haskell{True} or \haskell{Just}.
             \item
             {
-
-                \monospace{App} is application as expected, but covers both function applications and data
-                constructor applications (eg.\ \monospace{App (Con "Just" (Int #\(\rightarrow\)# Maybe Int)) (Var
-                "x" Int)}).
+                \monospace{App} is application as expected, but covers both function applications and data constructor applications (eg.\ \monospace{App (Con "Just" (Int #\(\rightarrow\)# Maybe Int)) (Var "x" Int)}).
 
                 \todo[inline]{Weird spacing here...}
-
             }
             \item
             {
+                \monospace{Case #\(e\ vs\ as\)#} represents a multi-way switch on the value of an expression \(e\) (the `head' or `scrutinee'), matching against a number of possible matches (`alts') from the list \(as\), where the evaluated value of \(e\) is bound to each of the variables in \(vs\). The additional binding variables can be useful when the scrutinee expression is reused within some number of the alts. 
 
-                \monospace{Case #\(e\ vs\ as\)#} represents a multi-way switch on the value of an expression \(e\)
-                (the `head' or `scrutinee'), matching against a number of possible matches (`alts') from the list
-                \(as\), where the evaluated value of \(e\) is bound to each of the variables in \(vs\). The
-                additional binding variables can be useful when the scrutinee expression is reused within some
-                number of the alts.
-
-                The alts in a \monospace{Case} expression, of the form \monospace{Alt #\(c\ b\)#}, match the value
-                of evaluating the scrutinee against the data constructor \(c\), then evaluates the \(b\) from
-                whichever alt matched. \monospace{AltConstructor} represents the potential matches: either a data
-                constructor with a number of variables to be bound, or a `match-anything' default value.
-
+                The alts in a \monospace{Case} expression, of the form \monospace{Alt #\(c\ b\)#}, match the value of evaluating the scrutinee against the data constructor \(c\), then evaluates the \(b\) from whichever alt matched. \monospace{AltConstructor} represents the potential matches: either a data constructor with a number of variables to be bound, or a `match-anything' default value.
             }
             \end{itemize}
         }
         \subsubsection{Pattern Matching}
         {
+            Many syntax features in Haskell are just syntactic sugar, and are simple to desugar (list literals like \haskell{[1, 2]} are desugared to \haskell{1:(2:[])}). Others are slightly more verbose, such as converting \haskell{if x then y else z} expressions into \haskell{case x of { True -> y ; False -> z }} (\haskell{Bool}is just defined as an ADT in Haskell, there's no special language support for it).
 
-            Many syntax features in Haskell are just syntactic sugar, and are simple to desugar (list literals like
-            \haskell{[1, 2]} are desugared to \haskell{1:(2:[])}). Others are slightly more verbose, such as converting \haskell{if x then y else z} expressions into \haskell{case x of { True -> y ; False -> z }}
-            (\haskell{Bool}is just defined as an ADT in Haskell, there's no special language support for it).
-
-            Other language features are non-trivial to lower, such as the rich syntax Haskell uses for pattern
-            matching. An example pattern match could be \haskell{Just x@(y:z) = Just [1, 2]}, binding \haskell{x =
-            [1, 2]}, \haskell{y = 1}, and \haskell{z = [2]}. Multiple pattern matches can also be matched in
-            parallel, as in function definitions:
+            Other language features are non-trivial to lower, such as the rich syntax Haskell uses for pattern matching. An example pattern match could be \haskell{Just x@(y:z) = Just [1, 2]}, binding \haskell{x = [1, 2]}, \haskell{y = 1}, and \haskell{z = [2]}. Multiple pattern matches can also be matched in parallel, as in function definitions:
 
             \begin{haskellfigure}
             f (x, Just y) = x + y
             f (x, Nothing) = x
             \end{haskellfigure}
 
-            Additionally, pattern matches can occur in a number of places: pattern-binding declarations such as
-            \haskell{let (x, y) = z in ...}, functions definitions like the example above, lambda expressions, and
-            \haskell{case} expressions (\haskell{case Just 1 of { Nothing -> ... ; Just x -> ... }}). The
-            heterogeneity of use sites demands a flexible approach to translating pattern matches that can be reused
-            for each instance.
+            Additionally, pattern matches can occur in a number of places: pattern-binding declarations such as \haskell{let (x, y) = z in ...}, functions definitions like the example above, lambda expressions, and \haskell{case} expressions (\haskell{case Just 1 of { Nothing -> ... ; Just x -> ... }}). The heterogeneity of use sites demands a flexible approach to translating pattern matches that can be reused for each instance.
 
-            My initial implementation worked correctly for `horizontal' patterns where there are a number of
-            sequential patterns on independent variables, such as in \haskell{f (x, y) (Just z) = z}, but didn't
-            support multiple disjoint patterns `vertically', such as:
+            My initial implementation worked correctly for `horizontal' patterns where there are a number of sequential patterns on independent variables, such as in \haskell{f (x, y) (Just z) = z}, but didn't support multiple disjoint patterns `vertically', such as:
 
             \begin{haskellfigure}
             f Nothing = 0
             f (Just x) = x
             \end{haskellfigure}
 
-            The implementation is somewhat fiddly, so a simplified declarative version is presented below as a
-            function translating terms from the Haskell grammar (either patterns or variables) to terms of ILA. It
-            demonstrates the translation of a few of the more interesting Haskell patterns. Syntactic terms of ILA
-            are presented in monospaced font and meta-variables used to represent Haskell terms are given in script
-            font:
+            The implementation is somewhat fiddly, so a simplified declarative version is presented below as a function translating terms from the Haskell grammar (either patterns or variables) to terms of ILA. It demonstrates the translation of a few of the more interesting Haskell patterns. Syntactic terms of ILA are presented in monospaced font and meta-variables used to represent Haskell terms are given in script font:
             \begin{alignat*}{2}
             \text{translate} & (v:vs, v':ps, b) && =\; \text{translate} (vs, ps, b) [v/v'] \\
             \text{translate} & (v:vs, (con\;ps'):ps, b) && =\; \texttt{case } v \texttt{ of \{ }con\;vs'\texttt{ -> }
@@ -831,11 +539,7 @@ code repository structure.
             \text{translate} & ([], [], b) && =\; b
             \end{alignat*}
 
-            In \(\text{translate}(vs,ps,b)\), \(vs\) is a stack of Haskell variables, \(ps\) is a stack of Haskell
-            patterns to match the variables against, and \(b\) is a Haskell expression for the right-hand-side of
-            the pattern match. The result is a recursively constructed ILA term that decomposes the variables in
-            \(vs\) using the patterns in \(ps\). For example, the expression \haskell{case x of { y@(Just z) -> (y,
-            z) }} would be translated as:
+            In \(\text{translate}(vs,ps,b)\), \(vs\) is a stack of Haskell variables, \(ps\) is a stack of Haskell patterns to match the variables against, and \(b\) is a Haskell expression for the right-hand-side of the pattern match. The result is a recursively constructed ILA term that decomposes the variables in \(vs\) using the patterns in \(ps\). For example, the expression \haskell{case x of { y@(Just z) -> (y, z) }} would be translated as:
             \begin{flalign*}
                             & \text{translate}([\texttt{x}], [\texttt{y@(Just z)}], \texttt{(y, z)}) &\\
             \rightarrow\;& \text{translate}([\texttt{x}], [\texttt{Just z}], \texttt{(y, z)}) [\texttt{x}/\texttt{y}] &\\
@@ -846,45 +550,24 @@ code repository structure.
             \rightarrow\;& (\texttt{case x of \{ Just u -> (y, z)} [\texttt{u}/\texttt{z}] \texttt{ \}}) [\texttt{x}/\texttt{y}] &\\
             \rightarrow\;& \texttt{case x of \{ Just u -> (x, u) \}} &
             \end{flalign*}
-            However, as mentioned earlier, this implementation only worked for `horizontal' patterns. The current
-            implementation is now based off the approach given in Chapter 5 of `The Implementation of Functional
-            Programming Languages' \cite{ImplFunLang}, which is a more general version of my approach: the stack of
-            patterns and the single body is replaced by a stack of `rows', each of which is a stack of patterns
-            along with a body representing the right-hand-side of the pattern match. The head patterns from each row
-            are grouped into data constructors, variables or literals, and the recursion occurs on each group.
-
+            However, as mentioned earlier, this implementation only worked for `horizontal' patterns. The current implementation is now based off the approach given in Chapter 5 of `The Implementation of Functional Programming Languages' \cite{ImplFunLang}, which is a more general version of my approach: the stack of patterns and the single body is replaced by a stack of `rows', each of which is a stack of patterns along with a body representing the right-hand-side of the pattern match. The head patterns from each row are grouped into data constructors, variables or literals, and the recursion occurs on each group.
         }
         \subsubsection{Literals aren't patterns}
         {
-
-            In Haskell a pattern will eventually match against either a data constructor, a literal value, or
-            `anything' (with the wildcard pattern \haskell{_}). However, in the grammar for ILA's
-            \haskell{AltConstructor}, there's no constructor corresponding to literals.
+            In Haskell a pattern will eventually match against either a data constructor, a literal value, or `anything' (with the wildcard pattern \haskell{_}). However, in the grammar for ILA's \haskell{AltConstructor}, there's no constructor corresponding to literals.
             
-            This is due to \monospace{case} expressions generally only making sense at a lower-level for data
-            constructors, where there are a finite number of constructors which can be `tagged' in some way in order
-            to test a value for which constructor it uses. On the other hand, literals normally have a cumbersomely
-            large (or infinite) number of `constructors' (one can imagine the \haskell{Int} type, which is bounded,
-            as being defined as \haskell{data Int = ... | -1 | 0 | 1 | ... }, but \haskell{Integer} cannot be
-            defined in this way as it is unbounded).
+            This is due to \monospace{case} expressions generally only making sense at a lower-level for data constructors, where there are a finite number of constructors which can be `tagged' in some way in order to test a value for which constructor it uses. On the other hand, literals normally have a cumbersomely large (or infinite) number of `constructors' (one can imagine the \haskell{Int} type, which is bounded, as being defined as \haskell{data Int = ... | -1 | 0 | 1 | ... }, but \haskell{Integer} cannot be defined in this way as it is unbounded).
             
-            As a result, pattern matches using literals are desugared into equality checks: the expression
-            \haskell{case x of { 0 -> y ; 1 -> z ; _ -> w }} is essentially translated into the Haskell expression
-            \haskell{if x == 0 then y else if x == 1 then z else w}, which is then lowered into ILA \haskell{case}
-            expressions matching \haskell{True} and \haskell{False} as described above.
+            As a result, pattern matches using literals are desugared into equality checks: the expression \haskell{case x of { 0 -> y ; 1 -> z ; _ -> w }} is essentially translated into the Haskell expression \haskell{if x == 0 then y else if x == 1 then z else w}, which is then lowered into ILA \haskell{case} expressions matching \haskell{True} and \haskell{False} as described above.
 
         }
     }
     \subsection{Intermediate Language A - Administrative Normal Form}
     {
 
-        ILA-ANF is a subset of ILA which uses a more restricted grammar to enforce more invariants on the language
-        and guide the AST into Administrative Normal Form (as described in Section \ref{sec:anf}). The full definition of ILA-ANF is given below, and reuses the definitions of
-        \haskell{Binding} and \haskell{Alt} from ILA.
+        ILA-ANF is a subset of ILA which uses a more restricted grammar to enforce more invariants on the language and guide the AST into Administrative Normal Form (as described in Section \ref{sec:anf}). The full definition of ILA-ANF is given below, and reuses the definitions of \haskell{Binding} and \haskell{Alt} from ILA. 
 
-        In the case of ILA-ANF, `trivial' terms are taken to be variables, data constructors, and literals. Note
-        that this excludes lambda terms, which is somewhat unusual. Instead, lambda terms must immediately be bound
-        to a variable: this restriction is enforced by the \haskell{AnfRhs} term in the grammar below.
+        In the case of ILA-ANF, `trivial' terms are taken to be variables, data constructors, and literals. Note that this excludes lambda terms, which is somewhat unusual. Instead, lambda terms must immediately be bound to a variable: this restriction is enforced by the \haskell{AnfRhs} term in the grammar below.
 
         \todo[inline]{Why lambda terms not trivial? General design-decision explanation. Makes thunk model explicit + easier to generate code?}
 
@@ -905,26 +588,15 @@ code repository structure.
                     | Complex AnfComplex
         \end{haskellfigure}
 
-        An ILA program is lowered from a list of \haskell{Binding Expr} to a list of \haskell{Binding AnfRhs} by
-        this pass. The translation is quite simple compared to the other lowering passes -- most of the terms are
-        similar to those in ILA (including carrying type information), with notable exceptions being the
-        introduction of \haskell{AnfApplication}, which restricts application arguments to purely trivial terms, and
-        \haskell{AnfRhs}, to enforce that lambda terms can only be bound to variables.
+        An ILA program is lowered from a list of \haskell{Binding Expr} to a list of \haskell{Binding AnfRhs} by this pass. The translation is quite simple compared to the other lowering passes -- most of the terms are similar to those in ILA (including carrying type information), with notable exceptions being the introduction of \haskell{AnfApplication}, which restricts application arguments to purely trivial terms, and \haskell{AnfRhs}, to enforce that lambda terms can only be bound to variables.
 
     }
     \subsection{Intermediate Language B}
     {
 
-        ILB is the final intermediate language of this compiler and is inspired by GHC's STG (Spineless Tagless
-        G-Machine) IL. ILB maintains the ANF style from ILA-ANF. It has a number of extremely useful features for
-        code generation: the only term that performs any evaluation of an expression is the \haskell{ExpCase #\(e\
-        t\ vs\ as\)#} term (which evaluates \(e\) then branches to one of the \(as\)), and the only term which
-        performs any memory allocation is the \haskell{ExpLit #\(v\ r\ e\)#} term, which allocates memory on the
-        heap to represent a datatype/literal/uneveluated expression then evaluates \(e\).
+        ILB is the final intermediate language of this compiler and is inspired by GHC's STG (Spineless Tagless G-Machine) IL. ILB maintains the ANF style from ILA-ANF. It has a number of extremely useful features for code generation: the only term that performs any evaluation of an expression is the \haskell{ExpCase #\(e\ t\ vs\ as\)#} term (which evaluates \(e\) then branches to one of the \(as\)), and the only term which performs any memory allocation is the \haskell{ExpLit #\(v\ r\ e\)#} term, which allocates memory on the heap to represent a datatype/literal/uneveluated expression then evaluates \(e\).
 
-        Additionally, this language makes lazy evaluation `explicit', in the sense that expressions to be evaluated
-        are always encapsulated within an \haskell{RhsClosure} (thanks to ANF style which names each subexpression)
-        that can be implemented as a not-yet-evaluated thunk.
+        Additionally, this language makes lazy evaluation `explicit', in the sense that expressions to be evaluated are always encapsulated within an \haskell{RhsClosure} (thanks to ANF style which names each subexpression) that can be implemented as a not-yet-evaluated thunk.
 
         \begin{haskellfigure}
         data Arg = ArgLit Literal
@@ -940,18 +612,12 @@ code repository structure.
         data Rhs = RhsClosure [VariableName] Exp
         \end{haskellfigure}
 
-        ILB is similar in grammar to ILA-ANF, and the translation pass is relatively simple. There are some key
-        differences between the languages, that reflect the changes from a relatively high-level IL down to a
-        lower-level one:
+        ILB is similar in grammar to ILA-ANF, and the translation pass is relatively simple. There are some key differences between the languages, that reflect the changes from a relatively high-level IL down to a lower-level one:
 
         \begin{itemize}
         \item
         {
-
-            There are now two terms for applications, one for functions (\haskell{ExpApp}) and one for data
-            constructors (\haskell{ExpConApp}). The distinction is necessary for code generation, when a function
-            application results in a jump to new executable code while a constructor application creates a new heap
-            object.
+            There are now two terms for applications, one for functions (\haskell{ExpApp}) and one for data constructors (\haskell{ExpConApp}). The distinction is necessary for code generation, when a function application results in a jump to new executable code while a constructor application creates a new heap object. 
 
             \haskell{ExpConApp} also requires all its arguments to be present: it cannot be a partial application.
             Haskell treats datatype constructors as functions, so the following is a valid program:
@@ -962,70 +628,38 @@ code repository structure.
             y = x 2
             \end{haskellfigure}
 
-            At the implementation level however, functions and data constructors are necessarily very different, so
-            distinguishing them within this IL makes code generation easier.
+            At the implementation level however, functions and data constructors are necessarily very different, so distinguishing them within this IL makes code generation easier.
 
             \todo[inline]{Include how they're distinguished? Or too much detail?}
-
         }
         \item
         {
+            Right-hand side terms in ILA (\haskell{AnfRhs}) were either lambda expressions or a let-binding/case expression/\dots -- in ILB, the only right-hand side term is a \haskell{RhsClosure}. A closure with no arguments is essentially a thunk, a term that exists purely to delay computation of an expression, while a closure with arguments is the familiar lambda term.
 
-            Right-hand side terms in ILA (\haskell{AnfRhs}) were either lambda expressions or a let-binding/case
-            expression/\dots -- in ILB, the only right-hand side term is a \haskell{RhsClosure}. A closure with no
-            arguments is essentially a thunk, a term that exists purely to delay computation of an expression, while
-            a closure with arguments is the familiar lambda term.
-
-            ILB's \haskell{RhsClosure} takes a list of arguments, whereas ILA-ANF's lambda terms only take a single
-            argument (multiple-argument functions are just nested single-argument lambdas). This is another
-            translation aimed at making code generation easier. Single-argument lambdas allow for simpler logic when
-            handling partial application in higher-level languages, but is inefficient in implementation. ILB is the
-            ideal IL to perform this switch from the high-level convenient-to-modify grammar to a lower-level
-            efficient representation.
-
+            ILB's \haskell{RhsClosure} takes a list of arguments, whereas ILA-ANF's lambda terms only take a single argument (multiple-argument functions are just nested single-argument lambdas). This is another translation aimed at making code generation easier. Single-argument lambdas allow for simpler logic when handling partial application in higher-level languages, but is inefficient in implementation. ILB is the ideal IL to perform this switch from the high-level convenient-to-modify grammar to a lower-level efficient representation.
         }
         \item
         {
-
-            ILB only allows variables in many of the places where ILA-ANF allowed variables, literals, or 0-arity
-            data constructors (like \haskell{True}). This is another step towards making laziness explicit, by
-            keeping expressions simple so that only one step of the evaluation needs to happen at a time.
-
+            ILB only allows variables in many of the places where ILA-ANF allowed variables, literals, or 0-arity data constructors (like \haskell{True}). This is another step towards making laziness explicit, by keeping expressions simple so that only one step of the evaluation needs to happen at a time.
         }
         \end{itemize}
-
     }
 }
 \section{Code Generation}
 {
-    
-    Code generation is, from the surface, quite a mechanically simple process. ILB is a small language, so there
-    aren't many terms to lower into bytecode. Implementing the semantics of these terms in Java Bytecode is complex,
-    however.
+    Code generation is, from the surface, quite a mechanically simple process. ILB is a small language, so there aren't many terms to lower into bytecode. Implementing the semantics of these terms in Java Bytecode is complex, however.
 
-    The \monospace{hs-java} library was used to provide a Haskell representation of bytecode that could then be
-    serialised to a Java \monospace{.class} file, but a number of modifications were made to the library by me to
-    add support for Java 8 features required by the compiler, as well as a number of smaller improvements: the
-    forked project can be found at \url{https://github.com/hnefatl/hs-java}.
+    The \monospace{hs-java} library was used to provide a Haskell representation of bytecode that could then be serialised to a Java \monospace{.class} file, but a number of modifications were made to the library by me to add support for Java 8 features required by the compiler, as well as a number of smaller improvements: the forked project can be found at \url{https://github.com/hnefatl/hs-java}.
 
-    A number of Java classes have been written to provide the `primitives' used by generated bytecode: including the
-    implementation of Haskell's primitive datatypes like \haskell{Int} and \haskell{Char}, as well as the base class
-    for all ADTs definable within the language (\monospace{BoxedData}, described later). The compiler is aware of
-    these `builtin' classes and uses a set of `hooks' when generating code to provide Java implementations of
-    Haskell functions. This is covered in more detail later.
+    A number of Java classes have been written to provide the `primitives' used by generated bytecode: including the implementation of Haskell's primitive datatypes like \haskell{Int} and \haskell{Char}, as well as the base class for all ADTs definable within the language (\monospace{BoxedData}, described later). The compiler is aware of these `builtin' classes and uses a set of `hooks' when generating code to provide Java implementations of Haskell functions. This is covered in more detail later.
 
     \subsection{Heap Objects}\label{sec:heap-objects}
     {
+        \todo[inline]{Still figuring out where/how to move the big Java code dumps to increase clarity and keep things focused while not making the explanation confusing.} 
 
-        \todo[inline]{Still figuring out where/how to move the big Java code dumps to increase clarity and keep things focused while not making the explanation confusing.}
+        Literals, datatype values and closures are all represented at runtime by values on the heap, as they are all first-class values in Haskell, and will be referred to as `objects': this intentionally overloads the terminology used by Java for an instance of a class, as the two concepts are essentially interchangeable here as Java objects are heap-allocated.
 
-        Literals, datatype values and closures are all represented at runtime by values on the heap, as they are all
-        first-class values in Haskell, and will be referred to as `objects': this intentionally overloads the
-        terminology used by Java for an instance of a class, as the two concepts are essentially interchangeable
-        here as Java objects are heap-allocated.
-
-        Thunks are represented simply as closures without arguments: all of the closure logic described below is the
-        same between thunks and functions.
+        Thunks are represented simply as closures without arguments: all of the closure logic described below is the same between thunks and functions.
 
         All objects on the heap inherit from a common abstract base class, \java{HeapObject}:
 
@@ -1040,17 +674,11 @@ code repository structure.
         }
         \end{javafigure}
 
-        The abstract \java{enter} method evaluates the object to WHNF (described in Section \ref{sec:whnf}) and returns
-        a reference to the result, and the \java{clone} method simply returns a shallow copy of the object. This method
-        is critical for implementing function applications, described later.
+        The abstract \java{enter} method evaluates the object to WHNF (described in Section \ref{sec:whnf}) and returns a reference to the result, and the \java{clone} method simply returns a shallow copy of the object. This method is critical for implementing function applications, described later.
 
         \subsubsection{Literals}\label{sec:literals}
         {
-            
-            Literals are builtin types that can't be defined as an Haskell ADT, such as \haskell{Int}. Any such type
-            is a subclass of the \java{Data} class, which is itself a subclass of the \java{HeapObject} class that a
-            rather boring implementation of the abstract \java{enter} method. Any literal is already in WHNF, so
-            evaluation to WHNF is trivial:
+            Literals are builtin types that can't be defined as an Haskell ADT, such as \haskell{Int}. Any such type is a subclass of the \java{Data} class, which is itself a subclass of the \java{HeapObject} class that a rather boring implementation of the abstract \java{enter} method. Any literal is already in WHNF, so evaluation to WHNF is trivial:
 
             \begin{javafigure}
             public abstract class Data extends HeapObject {
@@ -1061,9 +689,7 @@ code repository structure.
             }
             \end{javafigure}
 
-            Here is an example literal implementation for \haskell{Integer}, Haskell's arbitrary precision integral
-            value type. It is implemented using Java's \java{BigInteger} class to perform all the computation. The
-            copious uses of underscores is explained in Section \ref{sec:jvm-sanitisation}.
+            Here is an example literal implementation for \haskell{Integer}, Haskell's arbitrary precision integral value type. It is implemented using Java's \java{BigInteger} class to perform all the computation. The copious uses of underscores is explained in Section \ref{sec:jvm-sanitisation}.
 
             \begin{javafigure}
             import java.math.BigInteger;
@@ -1090,27 +716,18 @@ code repository structure.
             }
             \end{javafigure}
 
-            The \java{_make_Integer(String)} function is used by the compiler to construct \haskell{Integer} literals:
-            it allows a Java \java{_Integer} object to be constructed from a Java string representation. For example,
-            the bytecode that creates the Haskell literal \haskell{2} would load the string \monospace{"2"} from the
-            constant pool then invoke the creation method:
+            The \java{_make_Integer(String)} function is used by the compiler to construct \haskell{Integer} literals: it allows a Java \java{_Integer} object to be constructed from a Java string representation. For example, the bytecode that creates the Haskell literal \haskell{2} would load the string \monospace{"2"} from the constant pool then invoke the creation method:
 
             \begin{monospacefigure}
             ldc          #210       // String 2
             invokestatic #16        // Method tmp/_Integer._make_Integer:(Ljava/lang/String;)Ltmp/_Integer;
             \end{monospacefigure}
 
-            The \java{add}, \java{eq}, etc. methods are Java implementations of the functions required by Haskell's
-            \haskell{Num}, \haskell{Eq} and \haskell{Show} typeclass instances for \haskell{Integer}. For `builtin'
-            types, the implementation of these typeclass functions need to be given in Java, as they can't be expressed
-            in Haskell. Section \ref{sec:hooks} on Hooks covers this aspect of code generation in more detail.
-
+            The \java{add}, \java{eq}, etc. methods are Java implementations of the functions required by Haskell's \haskell{Num}, \haskell{Eq} and \haskell{Show} typeclass instances for \haskell{Integer}. For `builtin' types, the implementation of these typeclass functions need to be given in Java, as they can't be expressed in Haskell. Section \ref{sec:hooks} on Hooks covers this aspect of code generation in more detail.
         }
         \subsubsection{Datatypes}
         {
-            
-            An Haskell ADT can be represented simply by a class generated by the compiler which inherits from the
-            \java{BoxedData} builtin abstract class:
+            An Haskell ADT can be represented simply by a class generated by the compiler which inherits from the \java{BoxedData} builtin abstract class:
 
             \begin{javafigure}
             public abstract class BoxedData extends Data {
@@ -1119,11 +736,7 @@ code repository structure.
             }
             \end{javafigure}
 
-            The \java{branch} field is used to identify which constructor of the type has been used, and the
-            \java{data} field contains any arguments given to the constructor. An example generated
-            class\footnote{The compiler doesn't generate a class described in Java source as shown, it just
-            generates the bytecode for the class directly.} for the datatype \haskell{data Maybe a = Nothing | Just
-            a} might be:
+            The \java{branch} field is used to identify which constructor of the type has been used, and the \java{data} field contains any arguments given to the constructor. An example generated class\footnote{The compiler doesn't generate a class described in Java source as shown, it just generates the bytecode for the class directly.} for the datatype \haskell{data Maybe a = Nothing | Just a} might be:
 
             \begin{javafigure}
             public class _Maybe extends BoxedData {
@@ -1142,216 +755,121 @@ code repository structure.
             }
             \end{javafigure}
 
-            Note that as \java{BoxedData} inherits from \java{Data}, the \java{enter} method has the same simple
-            implementation -- as any data value is already in WHNF.
-
+            Note that as \java{BoxedData} inherits from \java{Data}, the \java{enter} method has the same simple implementation -- as any data value is already in WHNF.
         }
         \subsubsection{Closures}\label{sec:closures}
         {
-
-            Closures are the most complicated objects stored on the heap. There are three main lifecycle stages of a
-            closure:
+            Closures are the most complicated objects stored on the heap. There are three main lifecycle stages of a closure:
 
             \begin{itemize}
             \item
             {
-                Creation: construction of a new closure representing a function of a given arity, without any
-                arguments having been applied yet but possibly including values of free variables in scope of the
-                closure.
+                Creation: construction of a new closure representing a function of a given arity, without any arguments having been applied yet but possibly including values of free variables in scope of the closure.
             }
             \item
             {
-                
-                Argument application: this may be a partial application or a total application, or even an
-                over-application: consider \haskell{id (+1) 5}, which evaluates to \haskell{6}. \haskell{id} has
-                arity 1, but is applied to 2 arguments here.
-
+                Argument application: this may be a partial application or a total application, or even an over-application: consider \haskell{id (+1) 5}, which evaluates to \haskell{6}. \haskell{id} has arity 1, but is applied to 2 arguments here.
             }
             \item
             {
-                Evaluation: after a total application, reducing the function to its body (as specified by WHNF
-                reduction).
+                Evaluation: after a total application, reducing the function to its body (as specified by WHNF reduction).
             }
             \end{itemize}
 
-            These behaviours are provided by the \java{Function} builtin class, which is given in Appendix
-            \ref{appendix:function}.
+            These behaviours are provided by the \java{Function} builtin class, which is given in Appendix \ref{appendix:function}.
 
             \todo[inline]{Now it's been moved to the appendices, is the following still clear enough?}
 
-            A function \(f\) (either defined locally or at the top-level) in Haskell of arity \(n_a\) and using
-            \(n_{fv}\) free variables is translated into two Java functions:
+            A function \(f\) (either defined locally or at the top-level) in Haskell of arity \(n_a\) and using \(n_{fv}\) free variables is translated into two Java functions:
             
             \begin{itemize}
             \item
             {
-                
-                \java{_#\(f\)#Impl}, which takes two arrays of \java{HeapObject}s as arguments, one holding the
-                arguments for the Haskell function (of length \(n_a\)) and one holding the free variables used by
-                the Haskell function (of length \(n_{fv}\)), and returns a \java{HeapObject} representing the result
-                of applying the function.
-
+                \java{_#\(f\)#Impl}, which takes two arrays of \java{HeapObject}s as arguments, one holding the arguments for the Haskell function (of length \(n_a\)) and one holding the free variables used by the Haskell function (of length \(n_{fv}\)), and returns a \java{HeapObject} representing the result of applying the function.
             }
             \item
             {
-
-                \java{_make_#\(f\)#}, which takes \(n_{fv}\) arguments representing the free variables of the
-                Haskell function, and returns a Java \java{Function} object representing the closure, where the
-                \java{inner} field points to the \java{_#\(f\)#Impl} function.
-
+                \java{_make_#\(f\)#}, which takes \(n_{fv}\) arguments representing the free variables of the Haskell function, and returns a Java \java{Function} object representing the closure, where the \java{inner} field points to the \java{_#\(f\)#Impl} function.
             }
             \end{itemize}
             
-            \java{Function}'s \java{freeVariables} field has type \java{HeapObject[]} as we know at initialisation
-            time exactly how many free variables the function has, and it doesn't change. The \java{arguments} field
-            is an \java{ArrayList<HeapObject>} so that we can handle partial applications and over-applications by
-            only adding arguments when they're applied.
+            \java{Function}'s \java{freeVariables} field has type \java{HeapObject[]} as we know at initialisation time exactly how many free variables the function has, and it doesn't change. The \java{arguments} field is an \java{ArrayList<HeapObject>} so that we can handle partial applications and over-applications by only adding arguments when they're applied.
 
             Haskell function applications are lowered into bytecode that:
             \begin{enumerate}
             \item
             {
-
-                Fetches the function, either by calling the appropriate \java{_make_} function with the free
-                variables, or just loading a local variable if the function has already been partially applied and
-                stored or passed as a function argument.
-
+                Fetches the function, either by calling the appropriate \java{_make_} function with the free variables, or just loading a local variable if the function has already been partially applied and stored or passed as a function argument.
             }
             \item
             {
-
-                \textbf{Clones} the \java{Function} object. This step is subtle but vital, as each argument applied
-                to the function mutates the \java{Function} object by storing additional arguments.
+                \textbf{Clones} the \java{Function} object. This step is subtle but vital, as each argument applied to the function mutates the \java{Function} object by storing additional arguments.
                 
-                If we're using a local closure like \haskell{let add1 = (+) 1 in add1 2 * add1 3} then
-                \haskell{add1} will be a local \java{Function} object with \java{inner} pointing to the
-                implementation of \haskell{(+)} and one applied argument (a \java{Data} instance representing 1).
-                Both \haskell{add1 2} and \haskell{add1 3} will mutate the object to add the argument being applied
-                (see the next step for details), which leads to the \java{Function} object after \haskell{add1 3}
-                having 3 stored arguments.
+                If we're using a local closure like \haskell{let add1 = (+) 1 in add1 2 * add1 3} then \haskell{add1} will be a local \java{Function} object with \java{inner} pointing to the implementation of \haskell{(+)} and one applied argument (a \java{Data} instance representing 1). Both \haskell{add1 2} and \haskell{add1 3} will mutate the object to add the argument being applied (see the next step for details), which leads to the \java{Function} object after \haskell{add1 3} having 3 stored arguments.
 
-                Cloning the function essentially maintains the same references to arguments and free variables, but
-                creates new (non-shared) containers to hold them, avoiding the above issue.
+                Cloning the function essentially maintains the same references to arguments and free variables, but creates new (non-shared) containers to hold them, avoiding the above issue.
                 
-                This is a shallow clone -- if we used a deep clone, recursively cloning the arguments and free
-                variables, then we'd lose the performance benefit of graph reduction where we can use an already
-                computed value instead of recomputing it ourselves, and increase memory usage.
-
+                This is a shallow clone -- if we used a deep clone, recursively cloning the arguments and free variables, then we'd lose the performance benefit of graph reduction where we can use an already computed value instead of recomputing it ourselves, and increase memory usage. 
             }
             \item
             {
-
-                Invokes \java{addArgument} on the cloned object for each argument in the application, storing them
-                later use.
-
+                Invokes \java{addArgument} on the cloned object for each argument in the application, storing them later use.
             }
             \item
             {
+                Invokes \java{enter} on the function object. This will reduce the object to WHNF, which has three cases:
 
-                Invokes \java{enter} on the function object. This will reduce the object to WHNF, which has three
-                cases:
-                
                 \begin{itemize}
                 \item
                 {
-
-                    The function is partially applied, so hasn't yet received all of the necessary arguments to be
-                    evaluated. Such a function is already in WHNF, so we can just return it.
-
+                    The function is partially applied, so hasn't yet received all of the necessary arguments to be evaluated. Such a function is already in WHNF, so we can just return it.
                 }
                 \item
                 {
-
-                    The function has exactly the right number of arguments, so WHNF demands we reduce it. This is
-                    implemented by calling the \java{inner} function that performs the actual implementation of the
-                    Haskell function with the free variables and arguments we've stored, then ensuring the result
-                    has been evaluated to WHNF by calling \java{enter}, then returning it.
-
+                    The function has exactly the right number of arguments, so WHNF demands we reduce it. This is implemented by calling the \java{inner} function that performs the actual implementation of the Haskell function with the free variables and arguments we've stored, then ensuring the result has been evaluated to WHNF by calling \java{enter}, then returning it.
                 }
                 \item
                 {
-
-                    The function is over-applied. This case looks complicated, it's two simple steps. We pretend we
-                    have an application of exactly the right number of arguments as in the above case, then instead
-                    of returning the result we cast it to a \java{Function} object and perform a normal function
-                    application with all the leftover arguments.
-
+                    The function is over-applied. This case looks complicated, it's two simple steps. We pretend we have an application of exactly the right number of arguments as in the above case, then instead of returning the result we cast it to a \java{Function} object and perform a normal function application with all the leftover arguments.
                 }
                 \end{itemize}
             }
             \end{enumerate}
 
-            All of the functions defined in a Haskell program are compiled into their pairs of Java functions within
-            a single class, the `main' class. Datatypes are compiled into their own classes which are then
-            referenced by the main class. This approach to function compilation differs from the approaches taken by
-            Scala and Kotlin (other languages targeting the JVM), which compile lambda expressions into anonymous
-            classes.
+            All of the functions defined in a Haskell program are compiled into their pairs of Java functions within a single class, the `main' class. Datatypes are compiled into their own classes which are then referenced by the main class. This approach to function compilation differs from the approaches taken by Scala and Kotlin (other languages targeting the JVM), which compile lambda expressions into anonymous classes.
 
-            In Haskell, the vast majority of expressions are function applications by the time the source has
-            reached ILB. To provide lazy semantics, each expression has to be evaluatable without forcing other
-            expressions, so each function implementation is quite small. This results in a lot of functions being
-            generated. Using anonymous classes to implement Haskell functions would result in hundreds or thousands
-            of small Java classes, whereas using Java functions results in far fewer classes and more functions
-            inside a single class.
+            In Haskell, the vast majority of expressions are function applications by the time the source has reached ILB. To provide lazy semantics, each expression has to be evaluatable without forcing other expressions, so each function implementation is quite small. This results in a lot of functions being generated. Using anonymous classes to implement Haskell functions would result in hundreds or thousands of small Java classes, whereas using Java functions results in far fewer classes and more functions inside a single class.
 
             \todo[inline]{This is meant to be a reflective design discussion: say something about it being interesting to compare tradeoffs in performance and size? Also cost of class loading?}
         }
     }
     \subsection{JVM Sanitisation}\label{sec:jvm-sanitisation}
     {
+        Haskell\footnote{\url{https://www.haskell.org/onlinereport/lexemes.html}}, Java\footnote{\url{https://docs.oracle.com/javase/specs/jls/se8/html/jls-3.html\#jls-3.8}}, and JVB\footnote{\url{https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-4.html\#jvms-4.2.2}} all allow different sets of strings as valid identifiers: for example, in Java and JVB \java{Temp} is a valid variable name, but in Haskell it's not (identifiers with uppercase Unicode start characters are reserved for constructor names like \monospace{True}). \monospace{(+)} is a valid identifier in Haskell and JVB, but not in Java.
 
-        Haskell\footnote{\url{https://www.haskell.org/onlinereport/lexemes.html}},
-        Java\footnote{\url{https://docs.oracle.com/javase/specs/jls/se8/html/jls-3.html\#jls-3.8}}, and
-        JVB\footnote{\url{https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-4.html\#jvms-4.2.2}} all allow
-        different sets of strings as valid identifiers: for example, in Java and JVB \java{Temp} is a valid variable
-        name, but in Haskell it's not (identifiers with uppercase Unicode start characters are reserved for
-        constructor names like \monospace{True}). \monospace{(+)} is a valid identifier in Haskell and JVB, but not in
-        Java.
+        Additionally name conflicts can occur between builtin classes used by the compiler (eg.\ \java{Function} and \java{Data}) and constructor names in the Haskell source (eg.\ \haskell{data Function = Function}).
 
-        Additionally name conflicts can occur between builtin classes used by the compiler (eg.\ \java{Function} and
-        \java{Data}) and constructor names in the Haskell source (eg.\ \haskell{data Function = Function}).
-
-        JVM Sanitisation is a name conversion process used in the code generator to prevent conflicts and invalid
-        variable names when everything's been lowered into JVB:
+        JVM Sanitisation is a name conversion process used in the code generator to prevent conflicts and invalid variable names when everything's been lowered into JVB:
 
         \begin{itemize}
         \item
         {
-
-            All names that have come from Haskell source are prefixed with an underscore, and any builtin classes
-            are forbidden from starting with an underscore. This prevents name clashes.
-
+            All names that have come from Haskell source are prefixed with an underscore, and any builtin classes are forbidden from starting with an underscore. This prevents name clashes.
         }
         \item
         {
-
-            Any non-alphanumeric (Unicode) characters in a Haskell source identifier are replaced by their Unicode
-            codepoint in hexadecimal, flanked on either side by \$ symbols. This is more restrictive than necessary,
-            as JVB allows most unicode characters, but is a safe and simple defence against conflicts. Using \$
-            symbols to mark the start and end of a sanitised character ensures that identifiers are uniquely
-            decodable and prevents two distinct identifiers from clashing when sanitised (without delimiters, the
-            valid Haskell identifiers \haskell{#\(\pi\)#} and \haskell{CF80} are sanitised into the same identifier:
-            \monospace{_CF80}. With the delimiters, \haskell{#\(\pi\)#} is sanitised into \monospace{_$CF80$}).
-
+            Any non-alphanumeric (Unicode) characters in a Haskell source identifier are replaced by their Unicode codepoint in hexadecimal, flanked on either side by \$ symbols. This is more restrictive than necessary, as JVB allows most unicode characters, but is a safe and simple defence against conflicts. Using \$ symbols to mark the start and end of a sanitised character ensures that identifiers are uniquely decodable and prevents two distinct identifiers from clashing when sanitised (without delimiters, the valid Haskell identifiers \haskell{#\(\pi\)#} and \haskell{CF80} are sanitised into the same identifier: \monospace{_CF80}. With the delimiters, \haskell{#\(\pi\)#} is sanitised into \monospace{_$CF80$}).
         }
         \end{itemize}
-
     }
     \subsection{Notable Instructions}
     {
+        As mentioned earlier, the \monospace{hs-java} library is used to generate Java \monospace{.class} files from an in-memory representation of JVB, but support for a number of instructions were added to it: this section describes some of the more interesting ones that are heavily used by the compiler. 
 
-        As mentioned earlier, the \monospace{hs-java} library is used to generate Java \monospace{.class} files from
-        an in-memory representation of JVB, but support for a number of instructions were added to it: this section
-        describes some of the more interesting ones that are heavily used by the compiler.
-        
         \todo[inline]{Would be nice to make these titles more noticeable...}
         \subsubsection{\monospace{lookupswitch}}
         {
-            
-            The \monospace{lookupswitch} instruction is a low-level implementation of a \java{switch} statement in
-            Java: it compares an \java{int} on the top of the stack (`scrutinee') with a set of values, jumping to
-            an address paired with each value or to a default address if no values match. The interesting part of
-            this instruction is that the length varies between usages:
+            The \monospace{lookupswitch} instruction is a low-level implementation of a \java{switch} statement in Java: it compares an \java{int} on the top of the stack (`scrutinee') with a set of values, jumping to an address paired with each value or to a default address if no values match. The interesting part of this instruction is that the length varies between usages:
 
             \tikzstyle{box}=[rectangle, draw=black, text centered]
             \tikzstyle{underarrow}=[below, pos=0.5]
@@ -1395,47 +913,27 @@ code repository structure.
             }
             \item
             {
-
-                Up to 3 bytes of padding follow, such that the next byte (the first byte of the `Default offset'
-                chunk) is an address that's a multiple of four bytes. JVM instruction addressing is local to a
-                function, so the first instruction in a method has address 0.
-
+                Up to 3 bytes of padding follow, such that the next byte (the first byte of the `Default offset' chunk) is an address that's a multiple of four bytes. JVM instruction addressing is local to a function, so the first instruction in a method has address 0.
             }
             \item
             {
+                The subsequent 4 bytes constitute a signed \java{int} that gives the offset to jump to if the scrutinee doesn't match any of the values given in the instruction. 
 
-                The subsequent 4 bytes constitute a signed \java{int} that gives the offset to jump to if the
-                scrutinee doesn't match any of the values given in the instruction.
-
-                For this description, `offset' means `signed relative address difference from the address of the opcode
-                of the instruction to the address of the target': if a \monospace{lookupswitch} instruction is 30 bytes
-                long, the offset used to jump to the immediately subsequent instruction would be 30, regardless of the
-                position of the instruction in the file or the position of the offset within the instruction.
-
+                For this description, `offset' means `signed relative address difference from the address of the opcode of the instruction to the address of the target': if a \monospace{lookupswitch} instruction is 30 bytes long, the offset used to jump to the immediately subsequent instruction would be 30, regardless of the position of the instruction in the file or the position of the offset within the instruction.
             }
             \item
             {
-
-                The following 4 bytes form another signed \java{int} that's restricted to non-negative values,
-                representing the number of value-offset pairs to match the scrutinee against, \(n\).
-
+                The following 4 bytes form another signed \java{int} that's restricted to non-negative values, representing the number of value-offset pairs to match the scrutinee against, \(n\).
             }
             \item
             {
-
-                Next come \(n\) pairs of 4-byte values, each describing an \java{int} value to match the scrutinee
-                against and an offset to jump to if the values match.
-
+                Next come \(n\) pairs of 4-byte values, each describing an \java{int} value to match the scrutinee against and an offset to jump to if the values match.
             }
             \end{itemize}
 
-            JVB uses variable-length instructions: the \monospace{nop} (no-op) instruction is just an opcode
-            (\monospace{0x00}), a single byte, whereas the \monospace{goto} instruction is 3 bytes (the opcode,
-            \monospace{0xa7}, followed by a two-byte operand forming the address to jump to).
+            JVB uses variable-length instructions: the \monospace{nop} (no-op) instruction is just an opcode (\monospace{0x00}), a single byte, whereas the \monospace{goto} instruction is 3 bytes (the opcode, \monospace{0xa7}, followed by a two-byte operand forming the address to jump to).
 
-            The \monospace{lookupswitch} instruction is especially interesting because the length changes between
-            uses of the same instruction: \(n\) and \(p\) effect the length of the instruction at runtime.
-        
+            The \monospace{lookupswitch} instruction is especially interesting because the length changes between uses of the same instruction: \(n\) and \(p\) effect the length of the instruction at runtime.
         }
         \subsubsection{\monospace{invokedynamic}}
         {
@@ -1444,8 +942,7 @@ code repository structure.
             \begin{itemize}
             \item
             {
-                Basics of instruction, why needed (creation of \monospace{BiFunction} objects for
-                \monospace{Function}).
+                Basics of instruction, why needed (creation of \monospace{BiFunction} objects for \monospace{Function}).
             }
             \item Boostrap methods, class attributes
             \end{itemize}
@@ -1453,23 +950,17 @@ code repository structure.
     }
     \subsection{Hooks}\label{sec:hooks}
     {
+        Many standard functions operating on primitive types like \haskell{Int} and \haskell{Char}, such as \haskell{(+)} and \haskell{(==)}, cannot be implemented in Haskell. These operations need to be implemented at the same level as \haskell{Int} is implemented, in bytecode. However, \textit{some} form of definition has to be given in the Haskell source, so that the typechecker can infer that eg.\ the instance exists.
 
-        Many standard functions operating on primitive types like \haskell{Int} and \haskell{Char}, such as
-        \haskell{(+)} and \haskell{(==)}, cannot be implemented in Haskell. These operations need to be implemented
-        at the same level as \haskell{Int} is implemented, in bytecode. However, \textit{some} form of definition
-        has to be given in the Haskell source: we want to be able to write:
-
+        \begin{figure}[h]
         \begin{haskellfigure}
         instance Num Int where
             (+) = ...
         \end{haskellfigure}
+        \caption{We want to be able to write an instance declaration in order to allow typechecking to see that \haskell{Int} is an instance of \haskell{Num}, but we can't provide an implementation for any of its member functions.}
+        \end{figure}
 
-        ... in order to allow typechecking to see that \haskell{Int} is an instance of \haskell{Num}, but we can't
-        provide any reasonable implementation.
-
-        Hooks solve this problem by allowing for methods implemented in bytecode to be injected during code
-        generation, making them callable just like any function compiled from Haskell source. For example, integer
-        addition is defined as 
+        Hooks solve this problem by allowing for methods implemented in bytecode to be injected during code generation, making them callable just like any function compiled from Haskell source. For example, integer addition is defined as 
 
         \begin{haskellfigure}
         instance Num Int where
@@ -1477,116 +968,56 @@ code repository structure.
         primNumIntAdd :: Int -> Int -> Int
         \end{haskellfigure}
 
-        A hook is then added to the compiler that generates functions named \monospace{_makeprimNumIntAdd} and
-        \monospace{_primNumIntAddImpl}, as described in Section \ref{sec:closures}. The implementation of
-        \monospace{_primNumIntAddImpl} is provided in the hook definition, and simply forwards its arguments to the
-        \java{_Int::add} function shown in Section \ref{sec:literals}. The functions generated by the hook are, at the
-        bytecode level, indistinguishable from functions generated by any other expression so can be called by any
-        other function without issue.
-
+        A hook is then added to the compiler that generates functions named \monospace{_makeprimNumIntAdd} and \monospace{_primNumIntAddImpl}, as described in Section \ref{sec:closures}. The implementation of \monospace{_primNumIntAddImpl} is provided in the hook definition, and simply forwards its arguments to the \java{_Int::add} function shown in Section \ref{sec:literals}. The functions generated by the hook are, at the bytecode level, indistinguishable from functions generated by any other expression so can be called by any other function without issue.
     }
 }
 \section{Optimisations}
 {
+    Many JVM implementations perform low-level optimisations on the bytecode while just-in-time compiling it to native machine code. The Jikes JVM, as of 2006\footnote{http://www.complang.tuwien.ac.at/andi/ACACES06.pdf}, performs method inlining, common subexpression elimination, copy/constant propagation, peephole passes, instruction reordering and loop unrolling, as well as adaptive optimisations such as selective optimisation to improve startup time.
 
-    Many JVM implementations perform low-level optimisations on the bytecode while just-in-time compiling it to
-    native machine code. The Jikes JVM, as of 2006\footnote{http://www.complang.tuwien.ac.at/andi/ACACES06.pdf},
-    performs method inlining, common subexpression elimination, copy/constant propagation, peephole passes,
-    instruction reordering and loop unrolling, as well as adaptive optimisations such as selective optimisation to
-    improve startup time.
-
-    This somewhat reduces the need to perform low-level optimisations within the compiler, so focus is instead given
-    to higher-level optimisations.
+    This somewhat reduces the need to perform low-level optimisations within the compiler, so focus is instead given to higher-level optimisations.
 
     \subsection{Let-lifting}
     {
-
-        Let lifting aims to move let-bound variables and functions `up' the AST, to as close to the top-level as
-        possible while preserving the semantics. This can reduce the number of heap allocations and eliminate the
-        need for initialisation code, saving on program size and execution time.
+        Let lifting aims to move let-bound variables and functions `up' the AST, to as close to the top-level as possible while preserving the semantics. This can reduce the number of heap allocations and eliminate the need for initialisation code, saving on program size and execution time.
 
         \todo[inline]{Example?}
         
-        Lifting variables and functions to the top level is desirable as they can be referenced immediately by other
-        code without needing to initialise them: this eliminates initialisation code and in the case of variables
-        additionally prevents allocating a new thunk on the heap. Lifting expressions as high as possible but not
-        all the way to the top doesn't have any immediate advantages, but exposes benefits after the Binding
-        Deduplication pass, described in Section \ref{sec:binding-dedupe}.
+        Lifting variables and functions to the top level is desirable as they can be referenced immediately by other code without needing to initialise them: this eliminates initialisation code and in the case of variables additionally prevents allocating a new thunk on the heap. Lifting expressions as high as possible but not all the way to the top doesn't have any immediate advantages, but exposes benefits after the Binding Deduplication pass, described in Section \ref{sec:binding-dedupe}.
 
-        Let lifting is an ILB to ILB transformation, as ILB exposes the most uses of let-bindings: almost every
-        subexpression in a computation is let-bound to a variable as ILB requires that all function applications
-        only use trivial arguments. This provides a lot of freedom to move bindings around.
+        Let lifting is an ILB to ILB transformation, as ILB exposes the most uses of let-bindings: almost every subexpression in a computation is let-bound to a variable as ILB requires that all function applications only use trivial arguments. This provides a lot of freedom to move bindings around.
 
         \todo[inline]{Nomal let lifting involves lifting functions out of scope of their free variables then adding the free vars as arguments: mine doesn't do this as I didn't have time to look into how to balance adding more arguments versus removing free variables}
-
     }
     \subsection{Binding Deduplication}\label{sec:binding-dedupe}
     {
+        The binding deduplication pass eliminates any bindings where the right-hand side of the binding is syntactically identical to that of another in-scope binding, and replaces references to the eliminated binding with references to the existing one. This is a rather unusual optimisation to perform but it has significantly positive effects on program size, and can reduce computation.
 
-        The binding deduplication pass eliminates any bindings where the right-hand side of the binding is
-        syntactically identical to that of another in-scope binding, and replaces references to the eliminated
-        binding with references to the existing one. This is a rather unusual optimisation to perform but it has
-        significantly positive effects on program size, and can reduce computation.
+        As the intermediate languages are mostly in ANF, there are a great many let-bindings. In particular, simple expressions like \haskell{True && True} in Haskell are converted into \haskell{let v1 = True in let v2 = True in (&&) v1 v2} in ILB. This is necessary in general in order to provide lazy evaluation, but in simple cases like this it introduces obvious redundancy. Binding deduplication removes the redundancy by transforming the ILB version into \haskell{let v1 = True in (&&) v1 v1}. This reduces code size and removes a heap allocation, and if the redundant expression had been more complex it would also have allowed for the value to only be computed once, instead of twice.
 
-        As the intermediate languages are mostly in ANF, there are a great many let-bindings. In particular, simple
-        expressions like \haskell{True && True} in Haskell are converted into \haskell{let v1 = True in let v2 =
-        True in (&&) v1 v2} in ILB. This is necessary in general in order to provide lazy evaluation, but in simple
-        cases like this it introduces obvious redundancy. Binding deduplication removes the redundancy by
-        transforming the ILB version into \haskell{let v1 = True in (&&) v1 v1}. This reduces code size and removes
-        a heap allocation, and if the redundant expression had been more complex it would also have allowed for the
-        value to only be computed once, instead of twice.
-
-        This optimisation is an ILB to ILB transformation like let-lifting, for similar reasons. In addition, this
-        transformation is performed after let-lifting as it produces better results than before: after lifting
-        bindings as high as possible there are more in-scope bindings at any program point, which increases the
-        potential for bindings to be removed by this pass. In the \haskell{True && True} example given above, we
-        would naturally converge to only having a single binding of \haskell{True} in the program, rather than
-        multiple, which saves memory (as all values are allocated on the heap) and time (the program doesn't need to
-        initialise a new thunk containing that simple value each time it's used).
-
+        This optimisation is an ILB to ILB transformation like let-lifting, for similar reasons. In addition, this transformation is performed after let-lifting as it produces better results than before: after lifting bindings as high as possible there are more in-scope bindings at any program point, which increases the potential for bindings to be removed by this pass. In the \haskell{True && True} example given above, we would naturally converge to only having a single binding of \haskell{True} in the program, rather than multiple, which saves memory (as all values are allocated on the heap) and time (the program doesn't need to initialise a new thunk containing that simple value each time it's used).
     }
     \subsection{Unreachable Code Elimination}\label{sec:unreachable-elim}
     {
+        The unreachable code elimination pass removes all code that cannot be reached on some execution path from the entrypoint of the program, by performing a depth-first traversal of the syntax tree and recording all variables used.
 
-        The unreachable code elimination pass removes all code that cannot be reached on some execution path from
-        the entrypoint of the program, by performing a depth-first traversal of the syntax tree and recording all
-        variables used.
-
-        This optimisation pass is extremely effective as it can eliminate unused functions from the `standard
-        library' included with the compiler, described in Section \ref{sec:prelude}, ensuring that only code
-        necessary for the execution of the program is compiled.
-
+        This optimisation pass is extremely effective as it can eliminate unused functions from the `standard library' included with the compiler, described in Section \ref{sec:prelude}, ensuring that only code necessary for the execution of the program is compiled.
     }
     \subsection{Code generation}
     {
-
-        General smart codegen choices to prevent needless inefficiencies: using \monospace{lookupswitch} instead of
-        chained \monospace{ifeq}s, global closures etc.\ are just referenced instead of being created like local
-        closures, ...
+        General smart codegen choices to prevent needless inefficiencies: using \monospace{lookupswitch} instead of chained \monospace{ifeq}s, global closures etc.\ are just referenced instead of being created like local closures, ...
 
         \todo[inline]{Not planning to write yet: would like to sneakily implement unused code elimination in the \textit{tons} of time I have available and write that up instead, as a `proper optimisation technique'.}
-
     }
 }
 \section{Prelude}\label{sec:prelude}
 {
-
-    The Haskell Standard Library is named the Prelude, and consists of a number of builtin modules that provide
-    definitions of useful functions, datatypes, and typeclasses such as \haskell{map}, \haskell{Maybe}, and
-    \haskell{Monad}. My compiler includes a standard library, which includes a subset of the definitions from the
-    true Prelude.
+    The Haskell Standard Library is named the Prelude, and consists of a number of builtin modules that provide definitions of useful functions, datatypes, and typeclasses such as \haskell{map}, \haskell{Maybe}, and \haskell{Monad}. My compiler includes a standard library, which includes a subset of the definitions from the true Prelude.
     
-    With GHC, these are provided as importable modules from the \monospace{base} package, which is an implicit
-    (opt-out) dependency of all packages. My compiler does not support modules or packages, instead using a single
-    file per program, so the approach taken is to simply concatenate the file containing the standard library
-    (\monospace{StdLib.hs}) with the input file: dependency analysis (described in Section
-    \ref{sec:dependency-analysis}) ensures that the definitions are compiled in a valid order, and unreachable code
-    elimination (Section \ref{sec:unreachable-elim}) removes uncessary definitions to prevent program bloat.
-
+    With GHC, these are provided as importable modules from the \monospace{base} package, which is an implicit (opt-out) dependency of all packages. My compiler does not support modules or packages, instead using a single file per program, so the approach taken is to simply concatenate the file containing the standard library (\monospace{StdLib.hs}) with the input file: dependency analysis (described in Section \ref{sec:dependency-analysis}) ensures that the definitions are compiled in a valid order, and unreachable code elimination (Section \ref{sec:unreachable-elim}) removes uncessary definitions to prevent program bloat.
 }
 \section{Summary}
 {
-
     To summarise the key ideas in the implementation:
 
     \begin{itemize}
@@ -1594,81 +1025,46 @@ code repository structure.
     \item Variables and Type Variables in the source code are renamed to unique names to prevent naming conflicts.
     \item
     {
-
-        Dependency Analysis is necessary for determining the order in which to infer types for declarations, to ensure
-        that the types of mutually recursive functions are correct.
-
+        Dependency Analysis is necessary for determining the order in which to infer types for declarations, to ensure that the types of mutually recursive functions are correct.
     }
     \item
     {
-
-        Type inference is implemented similarly to the Hindley-Milner algorithm, but typeclasses introduce a number of
-        complications.
+        Type inference is implemented similarly to the Hindley-Milner algorithm, but typeclasses introduce a number of complications.
         
-        Typeclasses provide a way to implement strongly-typed ad-hoc overloading, allowing for the types of overloaded
-        expressions to be known at compile time.
-
+        Typeclasses provide a way to implement strongly-typed ad-hoc overloading, allowing for the types of overloaded expressions to be known at compile time.
     }
     \item
     {
-
-        After typechecking, types include typeclass `contexts', eg.\ \haskell{Eq a => a -> a -> Bool}. These are
-        implemented using dictionary passing, which introduces an extra parameter for each class constraint providing
-        the `implementation' of the typeclass for a type variable. This deoverloading process converts the context into
-        formal parameters eg.\ \haskell{Eq a -> a -> a -> Bool}.
-
+        After typechecking, types include typeclass `contexts', eg.\ \haskell{Eq a => a -> a -> Bool}. These are implemented using dictionary passing, which introduces an extra parameter for each class constraint providing the `implementation' of the typeclass for a type variable. This deoverloading process converts the context into formal parameters eg.\ \haskell{Eq a -> a -> a -> Bool}.
     }
     \item
     {
-        
-        Intermediate Language A's (ILA) primary design goal is to collapse the hundreds of types of syntax node in the
-        Haskell source AST into a significantly smaller core of less than 10 AST nodes. Type information is preserved
-        for use by lower stages and for sanity checks.
-
+        Intermediate Language A's (ILA) primary design goal is to collapse the hundreds of types of syntax node in the Haskell source AST into a significantly smaller core of less than 10 AST nodes. Type information is preserved for use by lower stages and for sanity checks.
     }
     \item
     {
-
-        ILA-Adminstrative Normal Form (ILAANF) is a trivial subset of ILA to help guide ILA into ANF, to simplify later
-        transformations.
-
+        ILA-Adminstrative Normal Form (ILAANF) is a trivial subset of ILA to help guide ILA into ANF, to simplify later transformations.
     }
     \item
     {
-
-        In Intermediate Language B (ILB), the only syntax node which represents evaluation of any kind is
-        \monospace{Case}, and the only node representing memory allocation is \monospace{Let}.
-
+        In Intermediate Language B (ILB), the only syntax node which represents evaluation of any kind is \monospace{Case}, and the only node representing memory allocation is \monospace{Let}.
     }
     \item All Haskell values (literals, data values, functions) are represented as Java objects on the heap.
     \item
     {
-
-        Lazy evaluation is implemented by translating each Haskell expression into a function, in order to delay
-        evaluation until the function is called.
-
+        Lazy evaluation is implemented by translating each Haskell expression into a function, in order to delay evaluation until the function is called.
     }
     \item
     {
-
-        `Evaluating' a Haskell expression means reducing it to Weak Head Normal Form, where the expression is either a
-        literal, fully/partially applied data constructor, or partially applied function. Arguments to functions or data
-        constructors need not have been evaluated.
-
+        `Evaluating' a Haskell expression means reducing it to Weak Head Normal Form, where the expression is either a literal, fully/partially applied data constructor, or partially applied function. Arguments to functions or data constructors need not have been evaluated.
     }
     \item
     {
-
-        Three optimisations have been implemented: let-lifting raises let-bound variables to as high as possible within
-        their expression; binding deduplication removes duplicate bindings in the same scope, to `clean up' the
-        redundant bindings which can be introduced by let-lifting; unreachable code elimination removes all code that
-        can't be reached from the program entrypoint, to reduce program size.
+        Three optimisations have been implemented: let-lifting raises let-bound variables to as high as possible within their expression; binding deduplication removes duplicate bindings in the same scope, to `clean up' the redundant bindings which can be introduced by let-lifting; unreachable code elimination removes all code that can't be reached from the program entrypoint, to reduce program size.
 
         All optimisations operate on ILB, as this is where they can have the greatest impact.
-
     }
     \end{itemize}
-
 }
 \section{Repository Structure}
 {
@@ -1676,9 +1072,7 @@ code repository structure.
 
     \begin{minipage}{0.7\textwidth}
     \vspace{-0.5cm}
-    The main code repository for this project is available at \url{https://github.com/hnefatl/dissertation-project} --
-    all of the code in this repository was written from scratch. The important directories in the top-level of the
-    repository are:
+    The main code repository for this project is available at \url{https://github.com/hnefatl/dissertation-project} -- all of the code in this repository was written from scratch. The important directories in the top-level of the repository are:
     \end{minipage}
     \hspace{5mm}
     \begin{minipage}{0.2\textwidth}
@@ -1698,12 +1092,7 @@ code repository structure.
     {
         \begin{minipage}{0.7\textwidth}
         \vspace{-5cm}
-        The vast majority of code written was in a library named \monospace{compiler}, which exposes an API for
-        compiling Haskell programs -- the code for this library is within the \monospace{src} directory. Files
-        corresponding to major stages in the compiler pipeline are shown in the directory tree below. A number of source
-        files have been omitted for clarity, as they contain utility functions or auxiliary code that is used by one of
-        the major files. The \monospace{Compiler.hs} source file does not correspond to a single pipeline stage, but
-        contains functions that string all of the other pipeline stages together.
+        The vast majority of code written was in a library named \monospace{compiler}, which exposes an API for compiling Haskell programs -- the code for this library is within the \monospace{src} directory. Files corresponding to major stages in the compiler pipeline are shown in the directory tree below. A number of source files have been omitted for clarity, as they contain utility functions or auxiliary code that is used by one of the major files. The \monospace{Compiler.hs} source file does not correspond to a single pipeline stage, but contains functions that string all of the other pipeline stages together.
 
         This library contains 6344 lines of Haskell source code.
         \end{minipage}
@@ -1740,10 +1129,7 @@ code repository structure.
     {
         \begin{minipage}{0.7\textwidth}
         \vspace{0pt}
-        The compiler executable is imaginatively named \haskell{compiler-exe}, and the single 97-line source file
-        \monospace{Main.hs} resides in the \monospace{app} directory: it contains the application entry point and code
-        for handling command-line arguments, before passing control over to the \monospace{compiler} library for the
-        actual compilation process.
+        The compiler executable is imaginatively named \haskell{compiler-exe}, and the single 97-line source file \monospace{Main.hs} resides in the \monospace{app} directory: it contains the application entry point and code for handling command-line arguments, before passing control over to the \monospace{compiler} library for the actual compilation process.
         \end{minipage}
         \hspace{5mm}
         \begin{minipage}{0.2\textwidth}
@@ -1760,8 +1146,7 @@ code repository structure.
     {
         \begin{minipage}{0.7\textwidth}
         \vspace{-6.5cm}
-        Tests are contained in the \monospace{test} directory. The directory layout intentionally mimics the layout of
-        the \monospace{src} directory, so the tests for each major compiler stage are stored in a similarly named path.
+        Tests are contained in the \monospace{test} directory. The directory layout intentionally mimics the layout of the \monospace{src} directory, so the tests for each major compiler stage are stored in a similarly named path.
 
         There are 1418 lines of Haskell source code for the tests.
         \end{minipage}
@@ -1794,15 +1179,11 @@ code repository structure.
     {
         \begin{minipage}{0.7\textwidth}
         \vspace{-6.5cm}
-        The code for evaluating the performance of the compiler is in the \monospace{benchmarks} directory, and consists
-        primarily of Python 3 scripts for representing, compiling, and executing a variety of benchmark programs using a
-        number of compilers, along with a script for plotting the data.
+        The code for evaluating the performance of the compiler is in the \monospace{benchmarks} directory, and consists primarily of Python 3 scripts for representing, compiling, and executing a variety of benchmark programs using a number of compilers, along with a script for plotting the data.
 
-        The \monospace{...benchmark.py} files define classes of benchmark and the \monospace{runbenchmarks.py} file
-        creates objects of those classes to represent the various benchmarks and executes them.
+        The \monospace{...benchmark.py} files define classes of benchmark and the \monospace{runbenchmarks.py} file creates objects of those classes to represent the various benchmarks and executes them.
 
-        The \monospace{programs} directory contains source files for the benchmarks, and the \monospace{results}
-        directory contains the data obtained from the benchmarks.
+        The \monospace{programs} directory contains source files for the benchmarks, and the \monospace{results} directory contains the data obtained from the benchmarks.
 
         There are 821 lines of Python source code for the benchmarking framework.
         \end{minipage}
@@ -1841,22 +1222,13 @@ code repository structure.
     {
         \begin{minipage}{0.7\textwidth}
         \vspace{0pt}
-        The \monospace{hs-java} library\footnote{\url{https://hackage.haskell.org/package/hs-java}} is a library
-        developed by Ilya V. Portnov for generating Java Bytecode. During my project, I made a number of modifications
-        to the library (described ????????), resulting in quite significant changes from the original. My fork of the
-        library is available at \url{https://github.com/hnefatl/hs-java}, and has Git additions/deletions of
-        \gitstats{1,772}{1,431}: the modified version of the library contains 3569 lines of Haskell source.
+        The \monospace{hs-java} library\footnote{\url{https://hackage.haskell.org/package/hs-java}} is a library developed by Ilya V. Portnov for generating Java Bytecode. During my project, I made a number of modifications to the library (described ????????), resulting in quite significant changes from the original. My fork of the library is available at \url{https://github.com/hnefatl/hs-java}, and has Git additions/deletions of \gitstats{1,772}{1,431}: the modified version of the library contains 3569 lines of Haskell source.
 
-        \todo[inline]{Find a place to reference the changes made, I feel like I've already duplicated this info once before.}
+        \todo[inline]{Find a place to reference the changes made, I feel like I've already duplicated this info once before.} 
 
-        \monospace{Assembler.hs} defines a representation of the JVB instruction set, \monospace{ClassFile.hs} defines a
-        representation of Java Class files, and \monospace{Converter.hs} defines functions for converting the class file
-        representation to and from a raw byte representation. The files within the \monospace{Builder} directory define
-        a useful API for generating bytecode from Haskell using a monad named \haskell{GeneratorT}, and any other files
-        simply contain utility functions.
+        \monospace{Assembler.hs} defines a representation of the JVB instruction set, \monospace{ClassFile.hs} defines a representation of Java Class files, and \monospace{Converter.hs} defines functions for converting the class file representation to and from a raw byte representation. The files within the \monospace{Builder} directory define a useful API for generating bytecode from Haskell using a monad named \haskell{GeneratorT}, and any other files simply contain utility functions.
 
-        The files under the \monospace{Java} directory define convenience variables for use when generating bytecode
-        that refer to builtin Java classes such as \java{java.lang.Object}.
+        The files under the \monospace{Java} directory define convenience variables for use when generating bytecode that refer to builtin Java classes such as \java{java.lang.Object}.
         \end{minipage}
         \hspace{5mm}
         \begin{minipage}{0.2\textwidth}

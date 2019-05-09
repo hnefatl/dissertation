@@ -2,39 +2,21 @@
 
 \begin{document}
 
-This chapter covers various aspects of the preparation for the project, including some of the important concepts I
-learned about while planning the implementation of various stages, a general overview of the compiler stages, and a
-description of the tools, tests and general software development attitude used.
+This chapter covers various aspects of the preparation for the project, including some of the important concepts I learned about while planning the implementation of various stages, a general overview of the compiler stages, and a description of the tools, tests and general software development attitude used.
 
 \section{Concepts}
 {
-
-    There are a number of key concepts that I needed to learn about in order to design and implement various stages in
-    the compiler: these are detailed in the following subsections.
+    There are a number of key concepts that I needed to learn about in order to design and implement various stages in the compiler: these are detailed in the following subsections.
 
     \subsection{Kinds}\label{sec:kinds}
     {
-
-        A Kind is often described as the `type of a type': we can say that \haskell{True :: Bool}, but looking to a type
-        system `one level up' we can say \haskell{Bool :: #\(*\)#} where \(*\) is the type of a `type constructor' that
-        takes no parameters. The type constructor \haskell{Maybe} has kind \(*\rightarrow*\), as it takes a single type
-        parameter: applying it to a type of kind \(*\) yields a type of kind \(*\), such as \haskell{Maybe Int}, while
-        applying it to a type with a different kind such as \haskell{Maybe Maybe} produces an invalid type.
+        A Kind is often described as the `type of a type': we can say that \haskell{True :: Bool}, but looking to a type system `one level up' we can say \haskell{Bool :: #\(*\)#} where \(*\) is the type of a `type constructor' that takes no parameters. The type constructor \haskell{Maybe} has kind \(*\rightarrow*\), as it takes a single type parameter: applying it to a type of kind \(*\) yields a type of kind \(*\), such as \haskell{Maybe Int}, while applying it to a type with a different kind such as \haskell{Maybe Maybe} produces an invalid type.
         
-        All values in Haskell have a type with kind \(*\): no values exist for types of other kinds. Kinds are used in
-        the type system to enforce type correctness (or perhaps kind correctness), such as rejecting \haskell{Bool Bool}
-        as an invalid type application.
-
+        All values in Haskell have a type with kind \(*\): no values exist for types of other kinds. Kinds are used in the type system to enforce type correctness (or perhaps kind correctness), such as rejecting \haskell{Bool Bool} as an invalid type application.
     }
     \subsection{Weak Head Normal Form}\label{sec:whnf}
     {
-
-        In a deterministic call-by-value language, evaluation of terms is to normal form (NF): \haskell{(1+2+3, True &&
-        False)} is evaluated to \haskell{(6, False)}. An alternative normal form is weak head normal form (WHNF), in
-        which terms are evaluated up to their `head'. In Haskell, this is defined to be until the outermost term is
-        either a literal, a fully or partially applied data constructor, or a partially applied function. Any arguments
-        need not have been evaluated. The following Haskell expressions are either valid or invalid WHNF terms, as
-        indicated:
+        In a deterministic call-by-value language, evaluation of terms is to normal form (NF): \haskell{(1+2+3, True && False)} is evaluated to \haskell{(6, False)}. An alternative normal form is weak head normal form (WHNF), in which terms are evaluated up to their `head'. In Haskell, this is defined to be until the outermost term is either a literal, a fully or partially applied data constructor, or a partially applied function. Any arguments need not have been evaluated. The following Haskell expressions are either valid or invalid WHNF terms, as indicated:
 
         \begin{haskellfigure}
         1               -- In WHNF
@@ -48,36 +30,21 @@ description of the tools, tests and general software development attitude used.
         (1 + 2) + 3     -- Not in WHNF
         \end{haskellfigure}
 
-        Evaluation of an expression up to WHNF corresponds to a form of non-strict evaluation: partial applications of
-        functions or any data constructor applications don't force their arguments to be evaluated, but when a function
-        is applied to all its arguments, it reduces to the body without necessarily having evaluated its arguments. In
-        particular, the evaluation of a Haskell program is equivalent to its reduction to WHNF.
-
+        Evaluation of an expression up to WHNF corresponds to a form of non-strict evaluation: partial applications of functions or any data constructor applications don't force their arguments to be evaluated, but when a function is applied to all its arguments, it reduces to the body without necessarily having evaluated its arguments. In particular, the evaluation of a Haskell program is equivalent to its reduction to WHNF. 
     }
     \subsection{Administrative Normal Form}\label{sec:anf}
     {
-
-        Administrative Normal Form (ANF, presented in \cite{ANF}) is a style of writing programs in which all arguments
-        to functions are trivial (a variable, literal, or other irreducible `value' like a lambda expression). ANF is an
-        alternative to Continuation Passing Style (CPS) as a style of intermediate language that is often seen as being
-        simpler to manipulate.
+        Administrative Normal Form (ANF, presented in \cite{ANF}) is a style of writing programs in which all arguments to functions are trivial (a variable, literal, or other irreducible `value' like a lambda expression). ANF is an alternative to Continuation Passing Style (CPS) as a style of intermediate language that is often seen as being simpler to manipulate.
 
         The expression \haskell{f x (1 + 2)} in ANF would be \haskell{let y = 1 + 2 in f x y}.
 
-        ANF is quite convenient for conceptualising the `thunk' implementation of lazy evaluation, where expressions are
-        represented as (possibly shared) units of suspended computation: any variable that binds a non-trivial
-        expression acts as the name of the thunk representing that expression, and function arguments now pass around
-        references to expressions.
+        ANF is quite convenient for conceptualising the `thunk' implementation of lazy evaluation, where expressions are represented as (possibly shared) units of suspended computation: any variable that binds a non-trivial expression acts as the name of the thunk representing that expression, and function arguments now pass around references to expressions. 
 
-        As part of the lowering process, the intermediate languages are converted into ANF as it makes generating lazy
-        code quite intuitive.
-
+        As part of the lowering process, the intermediate languages are converted into ANF as it makes generating lazy code quite intuitive. 
     }
     \subsection{Typeclasses}\label{sec:typeclasses}
     {
-
-        Typeclasses are a language feature used to provide statically-typed ad-hoc polymorphism (overloading). The
-        general usage of typeclasses is encapsulated by the following example:
+        Typeclasses are a language feature used to provide statically-typed ad-hoc polymorphism (overloading). The general usage of typeclasses is encapsulated by the following example: 
 
         \begin{haskellfigure}
         class Functor f where
@@ -92,29 +59,18 @@ description of the tools, tests and general software development attitude used.
             fmap f (x:xs) = f x:fmap f xs
         \end{haskellfigure}
 
-        A typeclass is similar to (but definitely different from) an `interface' in object-oriented languages: it
-        defines a set of functions that must be implemented by all instances of the class. In the example above, the
-        \haskell{Functor} class defines the \haskell{fmap} function and specifies its type, parametrised by a type
-        variable \haskell{f}. The instances of the class must provide implementations of this function where \haskell{f}
-        is replaced by the type being made an instance.
+        A typeclass is similar to (but definitely different from) an `interface' in object-oriented languages: it defines a set of functions that must be implemented by all instances of the class. In the example above, the \haskell{Functor} class defines the \haskell{fmap} function and specifies its type, parametrised by a type variable \haskell{f}. The instances of the class must provide implementations of this function where \haskell{f} is replaced by the type being made an instance.
 
-        Functions of a class can be used on any instance of that class, such as in the expression \haskell{fmap (*2)
-        [1,2,3]} which evaluates to \haskell{[2,4,6]}, or \haskell{fmap (fmap (*2)) [Just 1, Nothing]} which evaluates
-        to \haskell{[Just 2, Nothing]}.
+        Functions of a class can be used on any instance of that class, such as in the expression \haskell{fmap (*2) [1,2,3]} which evaluates to \haskell{[2,4,6]}, or \haskell{fmap (fmap (*2)) [Just 1, Nothing]} which evaluates to \haskell{[Just 2, Nothing]}.
 
-        Typeclasses are one of the most core features of Haskell: comparing values can be done using the functions
-        provided by the \haskell{Eq} and \haskell{Ord} typeclasses, printing and reading values makes use of the
-        \haskell{Show} and \haskell{Read} typeclasses, and all numeric types are instances of the \haskell{Num}
-        typeclass.
+        Typeclasses are one of the most core features of Haskell: comparing values can be done using the functions provided by the \haskell{Eq} and \haskell{Ord} typeclasses, printing and reading values makes use of the \haskell{Show} and \haskell{Read} typeclasses, and all numeric types are instances of the \haskell{Num} typeclass. 
 
-        The most commonly used implementation of typeclasses is dictionary passing, which is described in the section on
-        Deoverloading (\ref{sec:deoverloading}).
-
+        The most commonly used implementation of typeclasses is dictionary passing, which is described in the section on Deoverloading (\ref{sec:deoverloading}).
     }
     \subsection{Summary}
     {
-
         To briefly summarise the concepts listed above:
+
         \begin{itemize}
         \item A Kind is the type of a type, usually used to describe type constuctors: \haskell{Maybe :: * -> *}.
         \item Weak head normal form corresponds to non-strict evaluation, by only evaluating to the outermost term.
@@ -129,143 +85,92 @@ description of the tools, tests and general software development attitude used.
 }
 \section{Compiler Structure: Big Picture}\label{sec:compiler-structure}
 {
-
-    The general structure of the compiler is standard: the specific components within each stage are discussed within
-    the implementation section, but a general overview is useful for context.
+    The general structure of the compiler is standard: the specific components within each stage are discussed within the implementation section, but a general overview is useful for context.
 
     \begin{description}
     \item[Frontend]
     {
         \hfill
 
-        The frontend consists of standard lexing and parsing from Haskell source code into an Abstract Syntax Tree
-        (AST). A modified version of an existing library (haskell-src\footnote{https://github.com/hnefatl/haskell-src})
-        is used.
+        The frontend consists of standard lexing and parsing from Haskell source code into an Abstract Syntax Tree (AST). A modified version of an existing library (haskell-src\footnote{https://github.com/hnefatl/haskell-src}) is used.
 
     }
     \item[Preprocessing]
     {
         \hfill
 
-        The renamer renames each variable so that later stages can assume each variable name is unique: this reduces
-        complexity by removing the possibility of variable shadowing (eg.\ \haskell{let x = 1 in let x = 2 in x}).
+        The renamer renames each variable so that later stages can assume each variable name is unique: this reduces complexity by removing the possibility of variable shadowing (eg.\ \haskell{let x = 1 in let x = 2 in x}). 
 
-        Dependency analysis computes a partial order on the source declarations so that the typechecker can process them
-        in a valid order.
-
+        Dependency analysis computes a partial order on the source declarations so that the typechecker can process them in a valid order.
     }
     \item[Type Checker]
     {
         \hfill
 
-        The type inference stage infers polymorphic overloaded types for each symbol, checks them against any
-        user-provided type signatures, and alters the AST so that each expression is tagged with its type.
+        The type inference stage infers polymorphic overloaded types for each symbol, checks them against any user-provided type signatures, and alters the AST so that each expression is tagged with its type.
 
-        Deoverloading removes typeclasses from the type-level by implementing them as datatypes using
-        dictionary-passing.
-
+        Deoverloading removes typeclasses from the type-level by implementing them as datatypes using dictionary-passing.
     }
     \item[Lowering]
     {
         \hfill
 
-        The lowering stage transforms the Haskell source AST into Intermediate Language A (ILA), then rearranges that
-        tree into Administrative Normal Form (ILA-ANF), before finally transforming it into Intermediate Language B
-        (ILB).
-
+        The lowering stage transforms the Haskell source AST into Intermediate Language A (ILA), then rearranges that tree into Administrative Normal Form (ILA-ANF), before finally transforming it into Intermediate Language B (ILB).
     }
     \item[Optimisations]
     {
         \hfill
 
-        Optimisations transform the intermediate languages into more efficient forms (with respect to runtime
-        performance or generated code size) while preserving their semantics.
-
+        Optimisations transform the intermediate languages into more efficient forms (with respect to runtime performance or generated code size) while preserving their semantics.
     }
     \item[Code Generation]
     {
         \hfill
 
-        ILB is transformed into Java Bytecode (JVB), and a modified version of an existing library
-        (hs-java\footnote{https://github.com/hnefatl/hs-java}) is used to convert a logical representation of the
-        bytecode into a set of class files, which are then packaged into an executable Jar file.
-
+        ILB is transformed into Java Bytecode (JVB), and a modified version of an existing library (hs-java\footnote{https://github.com/hnefatl/hs-java}) is used to convert a logical representation of the bytecode into a set of class files, which are then packaged into an executable Jar file.
     }
     \end{description}
 }
 \section{Testability}
 {
-
-    Given the number of stages in the compiler and the scale of the project, tests are important to ensure that each
-    component has the intended behaviour.
+    Given the number of stages in the compiler and the scale of the project, tests are important to ensure that each component has the intended behaviour.
     
-    Haskell is a good language for writing testable code in: pure functions are usually easier to unit test than impure
-    functions as their behaviour is only affected by the parameters, independent of any global mutable state. The
-    pipeline of the compiler is entirely pure, with impure code only for reading the source file and writing the
-    compiled files. This made testing each stage reliable and strictly independent of the adjacent pipeline sections.
+    Haskell is a good language for writing testable code in: pure functions are usually easier to unit test than impure functions as their behaviour is only affected by the parameters, independent of any global mutable state. The pipeline of the compiler is entirely pure, with impure code only for reading the source file and writing the compiled files. This made testing each stage reliable and strictly independent of the adjacent pipeline sections.
 
-    Regression tests were implemented for all major bugs discovered, and ensure that the compiler stages don't
-    reintroduce incorrect behaviour.
+    Regression tests were implemented for all major bugs discovered, and ensure that the compiler stages don't reintroduce incorrect behaviour. 
 
-    Finally, end-to-end tests ensure that the compiler successfully processes a given Haskell source file and that the
-    executable produced computes the correct result, treating the compiler as a black box. This extremely coarse testing
-    method was very effective for discovering the existence of bugs, which could then be tracked down using standard
-    debugging techniques and isolated using the finer-grained unit and regression tests.
+    Finally, end-to-end tests ensure that the compiler successfully processes a given Haskell source file and that the executable produced computes the correct result, treating the compiler as a black box. This extremely coarse testing method was very effective for discovering the existence of bugs, which could then be tracked down using standard debugging techniques and isolated using the finer-grained unit and regression tests. 
 
     \todo[inline]{kc506: check this doesn't repeat stuff from the evaluation chapter}
-
 }
 \section{Tools}
 {
 
-    I chose to write this compiler in Haskell as it has a number of desirable features for large projects: purity
-    ensures that components of the project cannot interact in unexpected ways, and the static type system guarantees
-    that modifications are checked for a shallow (type-level) degree of correctness across the entire system.
+    I chose to write this compiler in Haskell as it has a number of desirable features for large projects: purity ensures that components of the project cannot interact in unexpected ways, and the static type system guarantees that modifications are checked for a shallow (type-level) degree of correctness across the entire system.
 
-    The natural choice of compiler for Haskell is the industry-leading Glasgow Haskell Compiler (GHC), and the Stack
-    build system is also relatively uncontested for Haskell build tooling, ensuring reproducible builds through a strict
-    dependency versioning system.
+    The natural choice of compiler for Haskell is the industry-leading Glasgow Haskell Compiler (GHC), and the Stack build system is also relatively uncontested for Haskell build tooling, ensuring reproducible builds through a strict dependency versioning system.
 
-    Documentation has been written using Haddock, a tool that generates documentation from the code and comments: this
-    documentation is rebuilt on every successful build and provides an easily-navigable description of commented modules
-    and functions.
+    Documentation has been written using Haddock, a tool that generates documentation from the code and comments: this documentation is rebuilt on every successful build and provides an easily-navigable description of commented modules and functions.
 
-    Git was used for version control, allowing me to develop features on distinct branches, use bisection to find the
-    commits which introduced bugs, and keep a remote repository of code on Github as a backup.
+    Git was used for version control, allowing me to develop features on distinct branches, use bisection to find the commits which introduced bugs, and keep a remote repository of code on Github as a backup. 
 
-    Continuous integration was performed using Travis CI, which ensures that tests are run on every pushed commit and
-    that builds are reproducible: the project can be built and run on different machines.
+    Continuous integration was performed using Travis CI, which ensures that tests are run on every pushed commit and that builds are reproducible: the project can be built and run on different machines.
 
-    The benchmarking framework was written in Python 3, and plots generated using \monospace{matplotlib}. The Java
-    Microbenchmark Harness (JMH) was used for gathering runtime statistics about the performance of output programs.
-
+    The benchmarking framework was written in Python 3, and plots generated using \monospace{matplotlib}. The Java Microbenchmark Harness (JMH) was used for gathering runtime statistics about the performance of output programs. 
 }
 \section{Software Development Model}
 {
+    I mainly used the waterfall development model, building each stage of the compiler sequentially and testing it both in isolation and in sequence with the previous stages. The only stage which broke this model was type inference, which required multiple refining iterations to properly implement.
 
-    I mainly used the waterfall development model, building each stage of the compiler sequentially and testing it both
-    in isolation and in sequence with the previous stages. The only stage which broke this model was type inference,
-    which required multiple refining iterations to properly implement.
-
-    This approach was effective for most stages as there was a well-defined set of unchanging requirements. When the
-    approach failed to work it was due to an incomplete set of requirements, so an iterative approach was more suitable
-    to introduce support for the new requirements.
-
+    This approach was effective for most stages as there was a well-defined set of unchanging requirements. When the approach failed to work it was due to an incomplete set of requirements, so an iterative approach was more suitable to introduce support for the new requirements.
 }
 \section{Starting Point}\label{sec:starting-point}
 {
+    The compiler uses a number of open-source packages from the de-facto Haskell standard library, such as \monospace{containers}, \monospace{text}, \monospace{mtl}, \dots. The full list is available in the \monospace{packages.yaml} configuration file in the root of the code repository.
 
-    The compiler uses a number of open-source packages from the de-facto Haskell standard library, such as
-    \monospace{containers}, \monospace{text}, \monospace{mtl}, \dots. The full list is available in the
-    \monospace{packages.yaml} configuration file in the root of the code repository.
+    The \monospace{haskell-src} lexing/parsing library for Haskell 98 source code was used, although forked and modified minorly (\gitstats{187}{68}). The bytecode assembly library \monospace{hs-java} was forked and significantly modified and extended to meet the requirements of this project (\gitstats{1,772}{1,431}).
 
-    The \monospace{haskell-src} lexing/parsing library for Haskell 98 source code was used, although forked and modified
-    minorly (\gitstats{187}{68}). The bytecode assembly library \monospace{hs-java} was forked and significantly
-    modified and extended to meet the requirements of this project (\gitstats{1,772}{1,431}).
-
-    No new languages had to be learnt for this project: I was already familiar with Haskell, Python 3, and Java. I had
-    not worked with \monospace{haskell-src}, \monospace{hs-java}, \monospace{matplotlib}, or \monospace{JMH} before.
-
+    No new languages had to be learnt for this project: I was already familiar with Haskell, Python 3, and Java. I had not worked with \monospace{haskell-src}, \monospace{hs-java}, \monospace{matplotlib}, or \monospace{JMH} before. 
 }
 
 \end{document}

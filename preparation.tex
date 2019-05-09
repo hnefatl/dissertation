@@ -40,21 +40,38 @@ This chapter covers various aspects of the preparation for the project, includin
     }
     \subsection{Weak Head Normal Form}\label{sec:whnf}
     {
-        In a deterministic call-by-value language, evaluation of terms is to normal form (NF): \haskell{(1+2+3, True && False)} is evaluated to \haskell{(6, False)}. An alternative normal form is weak head normal form (WHNF), in which terms are evaluated up to their `head'. In Haskell, this is defined to be until the outermost term is either a literal, a fully or partially applied data constructor, or a partially applied function. Any arguments need not have been evaluated. The following Haskell expressions are either valid or invalid WHNF terms, as indicated:
+        In a deterministic call-by-value language, evaluation of terms is to normal form (NF): \haskell{(1+2+3, True && False)} is evaluated to \haskell{(6, False)}. An alternative form is weak head normal form (WHNF), in which terms are evaluated up to their `head', and subexpressions need not have been evaluated. Haskell specifically defines the `head' to be a literal, a fully or partially applied data constructor, or a partially applied function. Arguments to data constructors/functions are subexpressions, so need not have been evaluated.
 
+        \begin{figure}[h]
+        \centering
+        \begin{minipage}[t]{0.2\textwidth}
+        \centering
+        In WHNF
+        \vspace{-5mm}
         \begin{haskellfigure}
-        1               -- In WHNF
-        (+) 1           -- In WHNF
-        1 + 2           -- Not in WHNF
-        3               -- In WHNF
-        Just            -- In WHNF
-        Just True       -- In WHNF
-        (\x -> x) 1     -- Not in WHNF
-        (+) (1 + 2)     -- In WHNF
-        (1 + 2) + 3     -- Not in WHNF
+        1
+        (+) 1
+        Just True
+        (+) (1 + 2)
+        x = 1:x
         \end{haskellfigure}
+        \end{minipage}
+        \hspace{3cm}
+        \begin{minipage}[t]{0.2\textwidth}
+        \centering
+        Not in WHNF
+        \vspace{-5mm}
+        \begin{haskellfigure}
+        1 + 2
+        (\x -> x) 1
+        (1 + 2) + 3
+        \end{haskellfigure}
+        \end{minipage}
+        \end{figure}
 
-        Evaluation of an expression up to WHNF corresponds to a form of non-strict evaluation: partial applications of functions or any data constructor applications don't force their arguments to be evaluated, but when a function is applied to all its arguments, it reduces to the body without necessarily having evaluated its arguments. In particular, the evaluation of a Haskell program is equivalent to its reduction to WHNF. 
+        Evaluation of an expression up to WHNF corresponds to a form of \textbf{non-strict evaluation}: partial applications of functions or any data constructor applications don't force their arguments to be evaluated, but when a function is applied to all its arguments, it reduces to the body without necessarily having evaluated its arguments. In particular, the evaluation of a Haskell program is equivalent to its reduction to WHNF.
+        
+        WHNF is vital for the code generation stage, as the evaluation method used is WHNF.
     }
     \subsection{Administrative Normal Form}\label{sec:anf}
     {

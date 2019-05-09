@@ -13,11 +13,7 @@ sections = {
 
 total_wordcount = 0
 for section, (path, target, percentage) in sections.items():
-    wordcount = (
-        subprocess.check_output(f"texcount {path} | head -n3 | tail -n1 | awk '{{print $4}}'", shell=True)
-        .decode()
-        .strip()
-    )
+    wordcount = subprocess.check_output(f"texcount -1 -sum {path}", shell=True).decode().strip()
     total_wordcount += int(wordcount)
     print(f"{section.ljust(5)}:\t{wordcount.rjust(5)}/{str(target).rjust(5)}\t({percentage * 100}%)")
 

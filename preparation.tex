@@ -18,9 +18,25 @@ This chapter covers various aspects of the preparation for the project, includin
 
     \subsection{Kinds}\label{sec:kinds}
     {
-        A Kind is often described as the `type of a type': we can say that \haskell{True :: Bool}, but looking to a type system `one level up' we can say \haskell{Bool :: #\(*\)#} where \(*\) is the type of a `type constructor' that takes no parameters. The type constructor \haskell{Maybe} has kind \(*\rightarrow*\), as it takes a single type parameter: applying it to a type of kind \(*\) yields a type of kind \(*\), such as \haskell{Maybe Int}, while applying it to a type with a different kind such as \haskell{Maybe Maybe} produces an invalid type.
+        Kinds are an essential concept for the type system \(F_\Omega\) used by Haskell, as described by B. Pierce\cite{TAPL}. System \(F_\Omega\) introduces type constructors, terms in the `type language' which act as `functions' between types. \haskell{Int} is a traditional type as seen in System F and the simply-typed lambda calculus, but \haskell{Maybe Int} is less traditional: \haskell{Maybe} is parameterised by a type. Kinds provide a language with which to describe these type constructors, and more importantly check that they're well-formed. After all, \haskell{Int Bool} makes no sense as a type, just as the term \haskell{1 True} makes no sense as an term.
+
+        A Kind is often described as the `type of a type': we can say that \haskell{True :: Bool}, but looking to a type system `one level up' we can say \haskell{Bool :: *} where \haskell{*} is the `type' of a `type constructor' that takes no parameters. The type constructor \haskell{Maybe} has kind \haskell{* -> *}, as it takes a single type parameter: applying it to a type of kind \haskell{*} yields a type of kind \haskell{*}, such as \haskell{Maybe Int}, while applying it to a type with a different kind such as \haskell{Maybe Maybe} produces an invalid type.
+
+        Data and class declarations define type constructors, and the kinds of any parameters can be inferred by their usage. Consider that in the declaration \haskell{data Maybe a = Left | Right a}, we can see that \haskell{Maybe :: #\(\alpha\)# -> *} as it has one parameter (of kind \(\alpha\)), and from the data constructor branch \haskell{Right a} we can infer that \haskell{#\(\alpha\)# = *}, resulting in \haskell{Maybe :: * -> *}. On the other hand, \haskell{data A f a = A (f a)} defines a type constructor \haskell{A :: (* -> *) -> *} and \haskell{data Bool = True | False} simply defines \haskell{Bool :: *}.
+
+        All values in Haskell have a type with kind \haskell{*}: no values exist for types of other kinds. For example, \haskell{(1 :: Int) :: *}, but there are no values of type \haskell{Maybe}, only values of \haskell{Maybe Int} or \haskell{Maybe Bool}, and so on.
+
+        The grammar and rules defining kinds sufficient for this compiler are as follows:
+        \begin{gather*}
+        \text{Kinds } K ::= * \mid K \rightarrow K
+        \qquad
+        \prftree[r]{}
+        {\vdash T_1 :: K_1 \rightarrow K_2}
+        {\vdash T_2 :: K_1}
+        {\vdash T_1\;T_2 :: K_2}
+        \end{gather*}
         
-        All values in Haskell have a type with kind \(*\): no values exist for types of other kinds. Kinds are used in the type system to enforce type correctness (or perhaps kind correctness), such as rejecting \haskell{Bool Bool} as an invalid type application.
+        The rule is identical to the function application rule from the simply typed lambda calculus, but defined on types instead of terms: this is the type system `one level up' (more advanced systems for kinds include more rules). Checks for type well-formedness include a check that any type applications result in types of appropriate kinds. In particular, any type inferred for a value must have kind \haskell{*}.
     }
     \subsection{Weak Head Normal Form}\label{sec:whnf}
     {
@@ -33,7 +49,7 @@ This chapter covers various aspects of the preparation for the project, includin
         3               -- In WHNF
         Just            -- In WHNF
         Just True       -- In WHNF
-        (\\x -> x) 1    -- Not in WHNF
+        (\x -> x) 1     -- Not in WHNF
         (+) (1 + 2)     -- In WHNF
         (1 + 2) + 3     -- Not in WHNF
         \end{haskellfigure}
@@ -67,7 +83,7 @@ This chapter covers various aspects of the preparation for the project, includin
             fmap f (x:xs) = f x:fmap f xs
         \end{haskellfigure}
 
-        A typeclass is similar to (but definitely different from) an `interface' in object-oriented languages: it defines a set of functions that must be implemented by all instances of the class. In the example above, the \haskell{Functor} class defines the \haskell{fmap} function and specifies its type, parametrised by a type variable \haskell{f}. The instances of the class must provide implementations of this function where \haskell{f} is replaced by the type being made an instance.
+        A typeclass is similar to (but definitely different from) an `interface' in object-oriented languages: it defines a set of functions that must be implemented by all instances of the class. In the example above, the \haskell{Functor} class defines the \haskell{fmap} function and specifies its type, parameterised by a type variable \haskell{f}. The instances of the class must provide implementations of this function where \haskell{f} is replaced by the type being made an instance.
 
         Functions of a class can be used on any instance of that class, such as in the expression \haskell{fmap (*2) [1,2,3]} which evaluates to \haskell{[2,4,6]}, or \haskell{fmap (fmap (*2)) [Just 1, Nothing]} which evaluates to \haskell{[Just 2, Nothing]}.
 

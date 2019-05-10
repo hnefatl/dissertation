@@ -242,14 +242,16 @@ The compiler is comprised of a number of stages and substages, as shown in Figur
         data TypeConstant = TypeConstant TypeVariableName Kind
 
         data Type = TypeVar TypeVariable
-                    | TypeCon TypeConstant
-                    | TypeApp Type Type Kind
+                  | TypeCon TypeConstant
+                  | TypeApp Type Type Kind
 
         data Kind = KindStar
-                    | KindFun Kind Kind
+                  | KindFun Kind Kind
         \end{haskellfigure}
 
         Type variables have an associated kind\footnote{Kinds were described in the Preparation chapter, Section \ref{sec:kinds}.} to allow for type constraints such as \haskell{pure :: Functor #\(f\)# => #\(\alpha\rightarrow f \alpha\)#}, in which \haskell{f} has kind \(*\rightarrow*\).
+
+        Note that function types (\(A \rightarrow B\)) are represented as applications of the \(\rightarrow\) type constructor. This simplifies logic in many places, as \(\rightarrow\) can usually be treated in the same way as type constructors like \haskell{Either}.
 
         A `simple type' is then represented as any tree of applications between type variables and type constants: these are types such as \haskell{Int -> Maybe Bool}. Haskell has more complex types, however: overloaded and polymorphic types.
 
@@ -275,7 +277,7 @@ The compiler is comprised of a number of stages and substages, as shown in Figur
     \todo[inline]{Section giving overview of substitution and unification?}
     \subsection{Type Inference}
     {
-        The implementation is inspired by the approach given by Mark P. Jones in \cite{THIH} and uses similar rules as the Hindley-Milner (HM) type inference algorithm. There are three passes over the source AST, each of which traverses the AST in dependency order as previously described in Section \ref{sec:dependency-analysis}.
+        The implementation is inspired by the approach given by Mark P. Jones\cite{THIH} and uses similar rules as the Hindley-Milner (HM) type inference algorithm. There are three passes over the source AST, each of which traverses the AST in dependency order as previously described in Section \ref{sec:dependency-analysis}.
 
         \begin{enumerate}
         \item
@@ -335,7 +337,7 @@ The compiler is comprised of a number of stages and substages, as shown in Figur
         }
         \subsubsection{Improvements}
         {
-            An improvement to the current approach would be to implement the OutsideIn(X) framework given by Vytiniotis et al \cite{OutsideIn}. This framework can work with Hindley-Milner type inference to handle more complex constraints than the current implementation, allowing support for GADTs and type families and handling type classes more flexibly than the current implementation.
+            An improvement to the current approach would be to implement the OutsideIn(X) framework given by Vytiniotis et al.\ \cite{OutsideIn}. This framework can work with Hindley-Milner type inference to handle more complex constraints than the current implementation, allowing support for GADTs and type families and handling type classes more flexibly than the current implementation.
         }
 
         \vspace{0.5cm}
@@ -455,15 +457,12 @@ The compiler is comprised of a number of stages and substages, as shown in Figur
 {
     There are two intermediate languages within the compiler, imaginatively named Intermediate Languages A and B (ILA and ILB respectively). There is also a minor language named ILA-Administrative Normal Form (ILA-ANF), which is simply a subset of ILA that helps restrict the terms to those in Administrative Normal Form (ANF).
 
-    \todo[inline]{For each: why needed, BNF grammar, strengths. Probably don't go into details of translation?}
-
     \subsection{Intermediate Language A}
     {
         ILA is a subset of GHC's Core intermediate language, removing terms which are used for advanced language features like GADTs, as they are not supported by this compiler. Haskell 98 has hundreds of node types in its AST\footnote{\url{https://hackage.haskell.org/package/haskell-src/docs/Language-Haskell-Syntax.html}}, whereas ILA has far fewer: this makes it far easier to transform.
 
         \subsubsection{Definition}
         {
-            \todo[inline]{Give BNF instead of Haskell ADTs?}
             \begin{haskellfigure}
             data Expr = Var VariableName Type
                       | Con VariableName Type
@@ -498,8 +497,6 @@ The compiler is comprised of a number of stages and substages, as shown in Figur
             \item
             {
                 \monospace{App} is application as expected, but covers both function applications and data constructor applications (eg.\ \monospace{App (Con "Just" (Int #\(\rightarrow\)# Maybe Int)) (Var "x" Int)}).
-
-                \todo[inline]{Weird spacing here...}
             }
             \item
             {
@@ -564,12 +561,9 @@ The compiler is comprised of a number of stages and substages, as shown in Figur
     }
     \subsection{Intermediate Language A - Administrative Normal Form}
     {
-
         ILA-ANF is a subset of ILA which uses a more restricted grammar to enforce more invariants on the language and guide the AST into Administrative Normal Form (as described in Section \ref{sec:anf}). The full definition of ILA-ANF is given below, and reuses the definitions of \haskell{Binding} and \haskell{Alt} from ILA. 
 
-        In the case of ILA-ANF, `trivial' terms are taken to be variables, data constructors, and literals. Note that this excludes lambda terms, which is somewhat unusual. Instead, lambda terms must immediately be bound to a variable: this restriction is enforced by the \haskell{AnfRhs} term in the grammar below.
-
-        \todo[inline]{Why lambda terms not trivial? General design-decision explanation. Makes thunk model explicit + easier to generate code?}
+        In the case of ILA-ANF, `trivial' terms are taken to be variables, data constructors, and literals. Note that this excludes lambda terms, which is somewhat unusual. Instead, lambda terms must immediately be bound to a variable: this restriction is enforced by the \haskell{AnfRhs} term in the grammar below. This design choice simplifies code generation.
 
         \begin{haskellfigure}
         data AnfTrivial = Var VariableName Type
@@ -593,7 +587,6 @@ The compiler is comprised of a number of stages and substages, as shown in Figur
     }
     \subsection{Intermediate Language B}
     {
-
         ILB is the final intermediate language of this compiler and is inspired by GHC's STG (Spineless Tagless G-Machine) IL. ILB maintains the ANF style from ILA-ANF. It has a number of extremely useful features for code generation: the only term that performs any evaluation of an expression is the \haskell{ExpCase #\(e\ t\ vs\ as\)#} term (which evaluates \(e\) then branches to one of the \(as\)), and the only term which performs any memory allocation is the \haskell{ExpLit #\(v\ r\ e\)#} term, which allocates memory on the heap to represent a datatype/literal/uneveluated expression then evaluates \(e\).
 
         Additionally, this language makes lazy evaluation `explicit', in the sense that expressions to be evaluated are always encapsulated within an \haskell{RhsClosure} (thanks to ANF style which names each subexpression) that can be implemented as a not-yet-evaluated thunk.
@@ -629,8 +622,6 @@ The compiler is comprised of a number of stages and substages, as shown in Figur
             \end{haskellfigure}
 
             At the implementation level however, functions and data constructors are necessarily very different, so distinguishing them within this IL makes code generation easier.
-
-            \todo[inline]{Include how they're distinguished? Or too much detail?}
         }
         \item
         {
@@ -830,7 +821,7 @@ The compiler is comprised of a number of stages and substages, as shown in Figur
                 }
                 \item
                 {
-                    The function is over-applied. This case looks complicated, it's two simple steps. We pretend we have an application of exactly the right number of arguments as in the above case, then instead of returning the result we cast it to a \java{Function} object and perform a normal function application with all the leftover arguments.
+                    The function is over-applied. Although this case looks complicated, it's really only two simple steps. We pretend we have an application of exactly the right number of arguments as in the above case, then instead of returning the result we cast it to a \java{Function} object and perform a normal function application with all the leftover arguments.
                 }
                 \end{itemize}
             }
@@ -839,8 +830,6 @@ The compiler is comprised of a number of stages and substages, as shown in Figur
             All of the functions defined in a Haskell program are compiled into their pairs of Java functions within a single class, the `main' class. Datatypes are compiled into their own classes which are then referenced by the main class. This approach to function compilation differs from the approaches taken by Scala and Kotlin (other languages targeting the JVM), which compile lambda expressions into anonymous classes.
 
             In Haskell, the vast majority of expressions are function applications by the time the source has reached ILB. To provide lazy semantics, each expression has to be evaluatable without forcing other expressions, so each function implementation is quite small. This results in a lot of functions being generated. Using anonymous classes to implement Haskell functions would result in hundreds or thousands of small Java classes, whereas using Java functions results in far fewer classes and more functions inside a single class.
-
-            \todo[inline]{This is meant to be a reflective design discussion: say something about it being interesting to compare tradeoffs in performance and size? Also cost of class loading?}
         }
     }
     \subsection{JVM Sanitisation}\label{sec:jvm-sanitisation}
@@ -864,9 +853,10 @@ The compiler is comprised of a number of stages and substages, as shown in Figur
     }
     \subsection{Notable Instructions}
     {
+        \todo[inline]{Candidate for complete deletion. Probably way too much detail, although it does demonstrate that codegen isn't trivial.}
+
         As mentioned earlier, the \monospace{hs-java} library is used to generate Java \monospace{.class} files from an in-memory representation of JVB, but support for a number of instructions were added to it: this section describes some of the more interesting ones that are heavily used by the compiler. 
 
-        \todo[inline]{Would be nice to make these titles more noticeable...}
         \subsubsection{\monospace{lookupswitch}}
         {
             The \monospace{lookupswitch} instruction is a low-level implementation of a \java{switch} statement in Java: it compares an \java{int} on the top of the stack (`scrutinee') with a set of values, jumping to an address paired with each value or to a default address if no values match. The interesting part of this instruction is that the length varies between usages:
@@ -981,33 +971,69 @@ The compiler is comprised of a number of stages and substages, as shown in Figur
     {
         Let lifting aims to move let-bound variables and functions `up' the AST, to as close to the top-level as possible while preserving the semantics. This can reduce the number of heap allocations and eliminate the need for initialisation code, saving on program size and execution time.
 
-        \todo[inline]{Example?}
-        
-        Lifting variables and functions to the top level is desirable as they can be referenced immediately by other code without needing to initialise them: this eliminates initialisation code and in the case of variables additionally prevents allocating a new thunk on the heap. Lifting expressions as high as possible but not all the way to the top doesn't have any immediate advantages, but exposes benefits after the Binding Deduplication pass, described in Section \ref{sec:binding-dedupe}.
+        The example in Figure \ref{fig:let-lifting-example} is somewhat contrived, but demonstrates the intent of the optimisation: \haskell{z} only has to be allocated and evaluated once each program, and \haskell{x'} only once per evaluation of \haskell{f} rather than each evaluation of \haskell{g}.
+
+        Lifting bindings as high as possible can reduce the amount of duplicated work done by some subexpressions. Lifting bindings to the top level is particularly desirable as they can be implemented as a globally-accessible thunk, which can be referenced immediately by other code without needing initialisation.
+
+        \begin{figure}[h]
+        \begin{minipage}[t]{0.45\textwidth}
+        \centering
+        Before
+        \vspace{-5mm}
+        \begin{haskellfigure}
+        f x = let
+            g y = let
+                z = 10
+                x' = x + z
+                y' = y + z
+                in x' + y'
+            in g
+        \end{haskellfigure}
+        \end{minipage}
+        \hspace{5mm}
+        \begin{minipage}[t]{0.45\textwidth}
+        \centering
+        After
+        \vspace{-5mm}
+        \begin{haskellfigure}
+        z = 10
+        f x = let
+            x' = x + z
+            g y = let y' = y + z in x' + y'
+            in g
+        \end{haskellfigure}
+        \end{minipage}
+        \caption{}
+        \label{fig:let-lifting-example}
+        \end{figure}
 
         Let lifting is an ILB to ILB transformation, as ILB exposes the most uses of let-bindings: almost every subexpression in a computation is let-bound to a variable as ILB requires that all function applications only use trivial arguments. This provides a lot of freedom to move bindings around.
 
-        \todo[inline]{Nomal let lifting involves lifting functions out of scope of their free variables then adding the free vars as arguments: mine doesn't do this as I didn't have time to look into how to balance adding more arguments versus removing free variables}
+        To implement let-lifting we traverse each top-level binding, building up and processing a dependency graph. Nodes in the graph represent let-bindings that we plan to rearrange, so are identified by a binding of a variable and a RHS expression. Node \(A\) depends on node \(B\) when the variable bound by \(B\) occurs free in the RHS of \(A\). Any topological ordering of this graph gives us the reverse of a syntactically valid `nesting' of let-bindings -- the first binding in the reversed order is the one that depends on no other variables, so should go at the root of the rearranged right-leaning tree, with the second binding in the order being the `body' of that first (\haskell{let x = 1 in (let y = 2 in ...}). This ensures that all bindings are in scope of their use-sites.
+        
+        There are minor special cases arising for let-bindings which bind other let-bindings to a variable, and for lambda expressions (which cannot be relocated: ILB ensures that lambda expressions are at the top level of a binding). The most important special case is for bindings which are still available to be rearranged when we finish traversing the top-level binding AST. These bindings can be lifted entirely out of their original declaration and into new top-level definitions.
     }
     \subsection{Binding Deduplication}\label{sec:binding-dedupe}
     {
-        The binding deduplication pass eliminates any bindings where the right-hand side of the binding is syntactically identical to that of another in-scope binding, and replaces references to the eliminated binding with references to the existing one. This is a rather unusual optimisation to perform but it has significantly positive effects on program size, and can reduce computation.
+        The binding deduplication pass eliminates any bindings where the right-hand side of the binding is syntactically identical to that of another in-scope binding, and replaces references to the eliminated binding with references to the existing one. This is a rather unusual optimisation to perform, but it has significantly positive effects on program size, and can reduce computation in some cases (if the duplicated expression is a long-running computation, then it will only be run once).
 
-        As the intermediate languages are mostly in ANF, there are a great many let-bindings. In particular, simple expressions like \haskell{True && True} in Haskell are converted into \haskell{let v1 = True in let v2 = True in (&&) v1 v2} in ILB. This is necessary in general in order to provide lazy evaluation, but in simple cases like this it introduces obvious redundancy. Binding deduplication removes the redundancy by transforming the ILB version into \haskell{let v1 = True in (&&) v1 v1}. This reduces code size and removes a heap allocation, and if the redundant expression had been more complex it would also have allowed for the value to only be computed once, instead of twice.
+        As the intermediate languages are mostly in ANF, there are a great number of let-bindings. In particular, simple expressions like \haskell{True && True} in Haskell are converted into \haskell{let v1 = True in let v2 = True in (&&) v1 v2} in ILB. This is necessary in general in order to provide lazy evaluation, but in common simple cases like this it introduces obvious redundancy.
+        
+        Binding deduplication removes the redundancy by transforming the ILB version into \haskell{let v1 = True in (&&) v1 v1}. This reduces code size and removes a heap allocation.
 
         This optimisation is an ILB to ILB transformation like let-lifting, for similar reasons. In addition, this transformation is performed after let-lifting as it produces better results than before: after lifting bindings as high as possible there are more in-scope bindings at any program point, which increases the potential for bindings to be removed by this pass. In the \haskell{True && True} example given above, we would naturally converge to only having a single binding of \haskell{True} in the program, rather than multiple, which saves memory (as all values are allocated on the heap) and time (the program doesn't need to initialise a new thunk containing that simple value each time it's used).
+
+        The implementation simply traverses each binding (both top-level bindings and let-bindings) in the program, computing the hash of the bound expression's AST: when two hashes match, as long as the bindings are within scope of each other, one of the bindings is eliminated and all uses of its bound variable replaced with a use of the alternative binding's variable.
     }
     \subsection{Unreachable Code Elimination}\label{sec:unreachable-elim}
     {
-        The unreachable code elimination pass removes all code that cannot be reached on some execution path from the entrypoint of the program, by performing a depth-first traversal of the syntax tree and recording all variables used.
+        The unreachable code elimination pass removes all code that cannot be reached on some execution path from the entrypoint of the program. Reachable code is determined syntactically, as semantic reachability is intractable in general.
 
-        This optimisation pass is extremely effective as it can eliminate unused functions from the `standard library' included with the compiler, described in Section \ref{sec:prelude}, ensuring that only code necessary for the execution of the program is compiled.
-    }
-    \subsection{Code generation}
-    {
-        General smart codegen choices to prevent needless inefficiencies: using \monospace{lookupswitch} instead of chained \monospace{ifeq}s, global closures etc.\ are just referenced instead of being created like local closures, ...
+        This optimisation pass is extremely effective as it can eliminate any unused functions from the `standard library' included with the compiler, described in Section \ref{sec:prelude}, ensuring that only code necessary for the execution of the program is compiled.
 
-        \todo[inline]{Not planning to write yet: would like to sneakily implement unused code elimination in the \textit{tons} of time I have available and write that up instead, as a `proper optimisation technique'.}
+        This optimisation is performed on ILB after binding deduplication as this leads to more opportunities for removing unreachable code: eliminating bindings during the deduplication optimisation pass can only reduce the number of references to each variable in the program.
+
+        The implementation performs two passes over the AST: the first pass records all variables used along any execution path starting from \haskell{main}; the second pass removes any bindings which don't define those variables.
     }
 }
 \section{Prelude}\label{sec:prelude}

@@ -75,13 +75,13 @@ This chapter covers various aspects of the preparation for the project, includin
     }
     \subsection{Administrative Normal Form}\label{sec:anf}
     {
-        Administrative Normal Form (ANF, presented in \cite{ANF}) is a style of writing programs in which all arguments to functions are trivial (a variable, literal, or other irreducible `value' like a lambda expression). ANF is an alternative to Continuation Passing Style (CPS) as a style of intermediate language that is often seen as being simpler to manipulate.
+        Administrative Normal Form (ANF, presented by Flanagan et al.\ \cite{ANF}) is a style of writing programs in which all arguments to functions are trivial (a variable, literal, or other irreducible `value' like a lambda expression). ANF is an alternative to Continuation Passing Style (CPS) as a style of intermediate language that is often seen as being simpler to manipulate.
 
         The expression \haskell{f x (1 + 2)} in ANF would be \haskell{let y = 1 + 2 in f x y}.
 
         ANF is quite convenient for conceptualising the `thunk' implementation of lazy evaluation, where expressions are represented as (possibly shared) units of suspended computation: any variable that binds a non-trivial expression acts as the name of the thunk representing that expression, and function arguments now pass around references to expressions. 
 
-        As part of the lowering process, the intermediate languages are converted into ANF as it makes generating lazy code quite intuitive. 
+        As part of the lowering process, the intermediate languages are converted into ANF as it makes generating thunk-based code quite intuitive. 
     }
     \subsection{Typeclasses}\label{sec:typeclasses}
     {

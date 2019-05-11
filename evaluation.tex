@@ -115,8 +115,6 @@
     }
     \subsection{Execution Speed}
     {
-        \todo[inline]{Might need to switch some of the plots to use a logarithmic y axis...}
-
         Figure \ref{fig:perf} demonstrates the runtime performance of the benchmark programs after compilation by the different compilers. It is evident that the performance of programs compiled by my compiler is significantly lower than those from Frege or Eta, but also that applying optimisations can produce a reasonable speedup.
 
         Interestingly Frege produced more performant programs than Eta, which wasn't expected.
@@ -135,8 +133,8 @@
 
         \begin{figure}[h]
             \centering
-            \captionsetup{width=0.8\textwidth}
-            \includegraphics[width=0.9\textwidth]{graphs/perf_profile_ackermann.pdf}
+            \captionsetup{width=0.9\textwidth}
+            \includegraphics[width=0.7\textwidth]{graphs/perf_profile_ackermann.pdf}
             \caption{A breakdown of the percentage of execution time spent in each Java function in the generated code (`inner time') for the \monospace{ackermann} benchmark. Functions with inner time of less than 3\% are grouped into a single wedge.}
             \label{fig:inner-time}
         \end{figure}
@@ -153,16 +151,14 @@
             \centering
             \captionsetup{width=0.8\textwidth}
             \includegraphics[width=0.9\textwidth]{graphs/compiler_perf.pdf}
-            \caption{Minimum time taken to compile the benchmark program. The dark grey section for the times from my compiler is the time taken writing the compiled classes to a compressed jar file.}
+            \caption{Minimum time taken to compile the benchmark program. The coloured sections indicate the amount of time spent in each stage of the compiler.}
             \label{fig:compiler-perf}
         \end{figure}
         
-        It's interesting that the compiler takes less time to process the input when performing optimisations than when not. This appears to be due to a significant amount of the compilation time being spent in compressing and writing the compiled classes into a jar file: the unreachable code elimination optimisation described in Section \ref{sec:unreachable-elim} can massively reduce the amount of code that reaches code generation, which in turn reduces the amount of bytecode that needs to be compressed and written to disk.
+        It's interesting that the compiler takes less time to process the input when performing optimisations than when not. This appears to be due to a significant amount of the compilation time being spent in the code generation stage, and compressing and writing the compiled classes into a jar file: the unreachable code elimination optimisation described in Section \ref{sec:unreachable-elim} can massively reduce the amount of code that reaches code generation, which in turn reduces the amount of bytecode that needs to be compressed and written to disk.
     }
     \subsection{Executable Size}
     {
-        \todo[inline]{Data for Eta here is outdated for all but \monospace{factorial}, it's quite a bit smaller but still larger than Frege and mine.}
-
         Figure \ref{fig:executable-size} displays the compiled size of each benchmark program after compilation by the various compilers. All three compilers generate a fixed-size set of class files that implement the logic of the Haskell program, have class files providing runtime support (for example, each compiler has an equivalent to the \java{Function} class described in Section \ref{sec:heap-objects}), and usually have a class file for each datatype defined in the Haskell program. This metric includes specifically the class files implementing the logic from the Haskell code and the runtime files, but does not count the size of the implementation of datatypes or other files. This combination was chosen because all the compilers generate class files for all datatypes regardless of whether they're used by the program, and Frege and Eta implement many more datatypes than my compiler's standard library provides: this causes the size of their executables to be primarily due to datatype implementation, obscuring the size due to the program logic itself.
 
         Also of note is that Eta and my compiler perform the Java equivalent of static linking, where the executable jar contains both the program logic and all the runtime files required, so that it can execute portably on any machine supporting Java. Frege performs the equivalent of dynamic linking, requiring the compiler's jar to be on the Java classpath when running its output executables as the runtime files are all stored inside. This made accurately measuring executable size slightly trickier.
@@ -183,9 +179,14 @@
             \centering
             \captionsetup{width=0.8\textwidth}
             \includegraphics[width=0.9\textwidth]{graphs/perf_by_opt.pdf}
-            \caption{Runtime of the benchmarks after compilation with various optimisations: L stands for let-lifting, D for binding de-duplication, and U for unreachable code elimination.}
+            \caption{Runtime of the benchmarks after compilation with various optimisations: L stands for let-lifting, D for binding deduplication, and U for unreachable code elimination.}
             \label{fig:opt-perf}
         \end{figure}
+
+        \todo[inline]{U produces exactly the same ILB and bytecode for all the functions not eliminated (at least for ackermann). Chalk it up as a mysterious JVM interaction, as the code run is exactly the same. Profiling showed that all functions are called the same number of times!}
+
+        % Write this section. Can excuse U, make some argument about L/D. Want LD to be best speed, so hopefully the new data shows this.
+
     }
 }
 \section{Schedule}

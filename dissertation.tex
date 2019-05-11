@@ -43,12 +43,14 @@
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{6pt}
 
+% Use a slightly modified pygments lexer
+\renewcommand{\MintedPygmentize}{./custompygmentize}
 \setminted{fontsize=\footnotesize}
 \newmintinline[monospace]{text}{escapeinside=\#\#, mathescape, fontsize=\normalsize}
-\newmintinline[haskell]{haskell}{escapeinside=\#\#, mathescape, fontsize=\normalsize}
+\newmintinline[haskell]{haskelllexer.py}{escapeinside=\#\#, mathescape, fontsize=\normalsize}
 \newmintinline[java]{java}{escapeinside=\#\#, mathescape, fontsize=\normalsize}
 \newminted[monospacefigure]{text}{linenos, frame=lines, framesep=1mm, autogobble, escapeinside=\#\#, mathescape}
-\newminted[haskellfigure]{haskell}{linenos, frame=lines, framesep=1mm, autogobble, escapeinside=\#\#, mathescape}
+\newminted[haskellfigure]{haskelllexer.py}{linenos, frame=lines, framesep=1mm, autogobble, escapeinside=\#\#, mathescape}
 \newminted[javafigure]{java}{linenos, frame=lines, framesep=1mm, autogobble, escapeinside=\#\#, mathescape}
 
 \renewcommand{\baselinestretch}{1.1} % adjust line spacing to make more readable

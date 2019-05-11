@@ -1,3 +1,8 @@
 #!/bin/bash
 
-pdflatex -synctex=1 -shell-escape -interaction=nonstopmode -file-line-error -recorder dissertation.tex
+doc="dissertation.tex"
+if [[ $# -gt 0 ]] ; then
+    doc="$1"
+fi
+
+latexmk -synctex=1 -shell-escape -interaction=nonstopmode -file-line-error -pdf "$doc"

@@ -81,16 +81,12 @@
     \end{haskellfigure}
 
     Each simple feature name necessarily glosses over many smaller constituent features necessary for use. For example, the `lists' feature allows for lists to be created using either the plain constructor syntax (\haskell{1:(2:(3:[]))}) or syntactic sugar for lists (\haskell{[1,2,3]}), and matched using patterns (eg.\ \haskell{[x,y] = [1,2]}). However, there's no support for list comprehensions (eg.\ \haskell{[f x | x <- [1,2,3], even x]}) as they weren't a high priority feature.
-
-    \todo[inline]{This \^ paragraph is kinda trying to explain that there's a lot of things associated with each coarse `feature', and that I've implemented all the obvious ones but that there are other aspects I won't have implemented. Unnecessary?} 
-
-    \todo[inline]{Should I talk about missing features? Typeclass/instance superclasses, default method implementations in classes, symbol type signatures...}
     
     \subsubsection{Correctness}
     {
         Correctness of the various stages of the compiler has been empirically tested using a large set of unit, integration, and regression tests: these include tests of complete programs, such as those used for benchmarking.
         
-        At the time of writing, there are 245\todo{Update} tests. These are run both on my development machine (described in Section \ref{sec:test-environment}), and on machines provided by Travis CI\footnote{\url{https://travis-ci.org/hnefatl/dissertation-project}} whenever a commit is pushed to my development GitHub repository. This ensures the compiler works in a clean, reproducible environment and not just on my development system.
+        At the time of writing, there are 245 tests. These are run both on my development machine (described in Section \ref{sec:test-environment}), and on machines provided by Travis CI\footnote{\url{https://travis-ci.org/hnefatl/dissertation-project}} whenever a commit is pushed to my development GitHub repository. This ensures the compiler works in a clean, reproducible environment and not just on my development system.
 
         Bugs found and fixed during development have at least one associated regression test to ensure that they cannot reappear.
 
@@ -113,7 +109,7 @@
     {
         All of the compilers being compared output JVB, so a natural choice of benchmarking framework was the Java Microbenchmark Harness (JMH)\footnote{\url{https://openjdk.java.net/projects/code-tools/jmh/}}. This allows for accurate Java program benchmarking by handling JVM warmup, disabling garbage collection, etc. There are downsides to the framework though, notably that it doesn't record memory usage, and that it only appears to expose percentiles and histograms of the results through its Java API, not the raw data.
 
-        To measure compiler performance, a more naïve approach was taken: the execution times of 50 sequential compilations were recorded for each compiler.
+        To measure compiler performance, a more na{\"i}ve approach was taken: the execution times of 50 sequential compilations were recorded for each compiler.
         
         For my compiler, the time taken to write the compiled class files to disk and compress them into a jar file was computed by measuring the difference between compilation runs which write to disk, and those which don't (using the \monospace{--no-write-jar} command-line-flag). This data is used in Figure \ref{fig:compiler-perf}.
     }
@@ -148,8 +144,6 @@
         As described in the implementation chapter, my compiler uses objects of a single class to represent closures, with objects of the class storing \java{Function} objects generated using the \monospace{invokedynamic} instruction and Java 8's support for anonymous functions. This is different from the approaches taken by both Eta and Frege, where closures are translated into anonymous classes that implement a Functional Interface\footnote{\url{https://docs.oracle.com/javase/8/docs/api/java/util/function/package-summary.html}} allowing objects of the classes to be invoked like anonymous methods.
 
         This design choice was deliberate: before implementing my compiler, it seemed like using a single class for all functions would be more efficient than using a new class for each function, as the equivalent Java code is significantly shorter. After implementation and having compared the two different approaches, using functional interfaces with a new class for each function results in simpler code for the creation and evaluation of closures, which I expect plays a large role in the performance difference.
-
-        \todo[inline]{The above hopefully conveys `I chose a different approach because I wanted to experiment, it's less efficient but I had fun anyway and have a decent idea as to why it's less efficient'.}
     }
     \subsection{Compiler Performance}
     {

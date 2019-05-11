@@ -5,4 +5,4 @@ if [[ $# -gt 0 ]] ; then
     doc="$1"
 fi
 
-latexmk -synctex=1 -shell-escape -interaction=nonstopmode -file-line-error -pdf "$doc"
+latexmk -synctex=1 --shell-escape -interaction=nonstopmode -file-line-error -pdf "$doc"

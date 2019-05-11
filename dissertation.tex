@@ -29,8 +29,8 @@
 
 % Reduce spacing around the chapter names
 \titleformat{\chapter}[display]
-{\normalfont\huge\bfseries}{\chaptertitlename\ \thechapter}{20pt}{\Huge}
-\titlespacing*{\chapter}{0pt}{-20pt}{40pt}
+{\normalfont\huge\bfseries}{\chaptertitlename\ \thechapter}{10pt}{\Huge}
+\titlespacing*{\chapter}{0pt}{-20pt}{20pt}
 
 % Allow paragraphs to be numbered
 \setcounter{secnumdepth}{4}
@@ -42,16 +42,16 @@
 % Don't indent paragraphs
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{6pt}
-
-% Use a slightly modified pygments lexer
-\renewcommand{\MintedPygmentize}{./custompygmentize}
+% Use a slightly modified pygments lexer for haskell, pass in the path and -x
 \setminted{fontsize=\footnotesize}
 \newmintinline[monospace]{text}{escapeinside=\#\#, mathescape, fontsize=\normalsize}
-\newmintinline[haskell]{haskelllexer.py}{escapeinside=\#\#, mathescape, fontsize=\normalsize}
+\newmintinline[haskell]{haskelllexer.py -x}{escapeinside=\#\#, mathescape, fontsize=\normalsize}
 \newmintinline[java]{java}{escapeinside=\#\#, mathescape, fontsize=\normalsize}
-\newminted[monospacefigure]{text}{linenos, frame=lines, framesep=1mm, autogobble, escapeinside=\#\#, mathescape}
-\newminted[haskellfigure]{haskelllexer.py}{linenos, frame=lines, framesep=1mm, autogobble, escapeinside=\#\#, mathescape}
-\newminted[javafigure]{java}{linenos, frame=lines, framesep=1mm, autogobble, escapeinside=\#\#, mathescape}
+\newminted[monospacefigure]{text}{linenos, frame=lines, framesep=1mm, autogobble, escapeinside=\#\#, mathescape, breaklines}
+\newminted[haskellfigure]{haskelllexer.py -x}{linenos, frame=lines, framesep=1mm, autogobble, escapeinside=\#\#, mathescape, breaklines}
+\newminted[javafigure]{java}{linenos, frame=lines, framesep=1mm, autogobble, escapeinside=\#\#, mathescape, breaklines}
+% Less space after minted blocks
+\setlength\partopsep{-\topsep}
 
 \renewcommand{\baselinestretch}{1.1} % adjust line spacing to make more readable
 

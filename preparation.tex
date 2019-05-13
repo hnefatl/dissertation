@@ -2,7 +2,7 @@
 
 \begin{document}
 
-This chapter covers various aspects of the preparation for the project, including some of the important concepts I learned about while planning the implementation of various stages, a general overview of the compiler stages, and a description of the tools, tests and general software development attitude used.
+This chapter covers various aspects of the preparation for the project, including some of the important concepts I learned about while planning the implementation of various stages, a general overview of the compiler stages, and a description of the tools, tests, and general software development attitude used.
 
 \section{Requirements Analysis}
 {
@@ -18,13 +18,13 @@ This chapter covers various aspects of the preparation for the project, includin
 
     \subsection{Kinds}\label{sec:kinds}
     {
-        Kinds are an essential concept for the type system \(F_\Omega\) used by Haskell, as described by B. Pierce\cite{TAPL}. System \(F_\Omega\) introduces type constructors, terms in the `type language' which act as `functions' between types. \haskell{Int} is a traditional type as seen in System F and the simply-typed lambda calculus, but \haskell{Maybe Int} is less traditional: \haskell{Maybe} is parameterised by a type. Kinds provide a language with which to describe these type constructors, and more importantly check that they're well-formed. After all, \haskell{Int Bool} makes no sense as a type, just as the term \haskell{1 True} makes no sense as an term.
+        Kinds are an essential concept for the type system \(F_\Omega\) used by Haskell, as described by B. Pierce\cite{TAPL}. System \(F_\Omega\) introduces type constructors, terms in the `type language' which act as `functions' between types. \haskell{Int} is a traditional type as seen in the polymorphic and simply-typed lambda calculus, but \haskell{Maybe Int} is less traditional: \haskell{Maybe} is parameterised by a type. Kinds provide a language with which to describe these type constructors, and more importantly check that they are well-formed. After all, \haskell{Int Bool} makes no sense as a type, just as the term \haskell{1 True} makes no sense as an term.
 
-        A Kind is often described as the `type of a type': we can say that \haskell{True :: Bool}, but looking to a type system `one level up' we can say \haskell{Bool :: *} where \haskell{*} is the `type' of a `type constructor' that takes no parameters. The type constructor \haskell{Maybe} has kind \haskell{* -> *}, as it takes a single type parameter: applying it to a type of kind \haskell{*} yields a type of kind \haskell{*}, such as \haskell{Maybe Int}, while applying it to a type with a different kind such as \haskell{Maybe Maybe} produces an invalid type.
+        A Kind is often described as the `type of a type': we can say that \haskell{True :: Bool}, but looking to a type system `one level up' we can say \haskell{Bool :: *} where \haskell{*} is the `type' of a parameterless `type constructor'. The type constructor \haskell{Maybe} has kind \haskell{* -> *}, as it takes a single type parameter: applying it to a type of kind \haskell{*} yields a type of kind \haskell{*}, such as \haskell{Maybe Int}, while applying it to a type with a different kind such as \haskell{Maybe Maybe} produces an invalid type.
 
-        Data and class declarations define type constructors, and the kinds of any parameters can be inferred by their usage. Consider that in the declaration \haskell{data Maybe a = Left | Right a}, we can see that \haskell{Maybe :: #\(\alpha\)# -> *} as it has one parameter (of kind \(\alpha\)), and from the data constructor branch \haskell{Right a} we can infer that \haskell{#\(\alpha\)# = *}, resulting in \haskell{Maybe :: * -> *}. On the other hand, \haskell{data A f a = A (f a)} defines a type constructor \haskell{A :: (* -> *) -> *} and \haskell{data Bool = True | False} simply defines \haskell{Bool :: *}.
+        Data and class declarations define type constructors, and the kinds of any parameters can be inferred by their usage. Consider that in the declaration \haskell{data Maybe a = Left | Right a}, we can see that \haskell{Maybe :: #\(\alpha\)# -> *} as it has one parameter (\haskell{a}, with as-yet unknown kind \(\alpha\)), and from the data constructor branch \haskell{Right a} we can infer that \haskell{#\(\alpha\)# = *}, resulting in \haskell{Maybe :: * -> *}. On the other hand, \haskell{data A f a = A (f a)} defines a type constructor \haskell{A :: (* -> *) -> *} and \haskell{data Bool = True | False} simply defines \haskell{Bool :: *}.
 
-        All values in Haskell have a type with kind \haskell{*}: no values exist for types of other kinds. For example, \haskell{(1 :: Int) :: *}, but there are no values of type \haskell{Maybe}, only values of \haskell{Maybe Int} or \haskell{Maybe Bool}, and so on.
+        All typeable terms in Haskell have a type with kind \haskell{*}: no values exist for types of other kinds. For example, \haskell{(1 :: Int) :: *}, but there are no values of type \haskell{Maybe}, only values of \haskell{Maybe Int} or \haskell{Maybe Bool}, and so on.
 
         The grammar and rules defining kinds sufficient for this compiler are as follows:
         \begin{gather*}
@@ -40,7 +40,7 @@ This chapter covers various aspects of the preparation for the project, includin
     }
     \subsection{Weak Head Normal Form}\label{sec:whnf}
     {
-        In a deterministic call-by-value language, evaluation of terms is to normal form (NF): \haskell{(1+2+3, True && False)} is evaluated to \haskell{(6, False)}. An alternative form is weak head normal form (WHNF), in which terms are evaluated up to their `head', and subexpressions need not have been evaluated. Haskell specifically defines the `head' to be a literal, a fully or partially applied data constructor, or a partially applied function. Arguments to data constructors/functions are subexpressions, so need not have been evaluated.
+        In a deterministic call-by-value language, \haskell{(1+2+3, \x -> x && True)} would evaluate to \haskell{(6, \x -> x && True)}. Haskell instead requires that terms are evaluated up to weak head normal form (WHNF), in which terms are evaluated to their `head', and subexpressions need not have been evaluated. Haskell specifically defines the `head' to be a literal, a fully or partially applied data constructor, or a partially applied function. Arguments to data constructors/functions are subexpressions, so need not have been evaluated.
 
         \begin{figure}[h]
         \centering
@@ -69,9 +69,21 @@ This chapter covers various aspects of the preparation for the project, includin
         \end{minipage}
         \end{figure}
 
-        Evaluation of an expression up to WHNF corresponds to a form of \textbf{non-strict evaluation}: partial applications of functions or any data constructor applications don't force their arguments to be evaluated, but when a function is applied to all its arguments, it reduces to the body without necessarily having evaluated its arguments. In particular, the evaluation of a Haskell program is equivalent to its reduction to WHNF.
+        Evaluation of an expression up to WHNF corresponds to a form of \textbf{non-strict evaluation}: partial applications of functions or any data constructor applications do not force their arguments to be evaluated, but when a function is applied to all its arguments, it reduces to the body without necessarily having evaluated its arguments. In particular, the evaluation of a Haskell program is equivalent to its reduction to WHNF.
+
+        \begin{figure}[h]
+        \centering
+        \begin{subfigure}[t]{0.5\textwidth}
+        \begin{haskellfigure}
+           (\x y -> (+) x) (1 + 2) 3
+        #\(\rightarrow\)# (+) (1 + 2)
+        #\(\not\rightarrow\)#
+        \end{haskellfigure}
+        \end{subfigure}
+        \caption{An example of evaluation to WHNF, demonstrating laziness.}
+        \end{figure}
         
-        WHNF is vital for the code generation stage, as the evaluation method used is WHNF.
+        This is an important concept for the code generation stage, which must generate code that implements evaluation to WHNF.
     }
     \subsection{Administrative Normal Form}\label{sec:anf}
     {
@@ -85,7 +97,7 @@ This chapter covers various aspects of the preparation for the project, includin
     }
     \subsection{Typeclasses}\label{sec:typeclasses}
     {
-        Typeclasses are a language feature used to provide statically-typed ad-hoc polymorphism (overloading). The general usage of typeclasses is encapsulated by the following example: 
+        Typeclasses are a language feature used to provide statically typed ad-hoc polymorphism (overloading). The general usage of typeclasses is encapsulated by the following example: 
 
         \begin{haskellfigure}
         class Functor f where
@@ -100,7 +112,7 @@ This chapter covers various aspects of the preparation for the project, includin
             fmap f (x:xs) = f x:fmap f xs
         \end{haskellfigure}
 
-        A typeclass is similar to (but definitely different from) an `interface' in object-oriented languages: it defines a set of functions that must be implemented by all instances of the class. In the example above, the \haskell{Functor} class defines the \haskell{fmap} function and specifies its type, parameterised by a type variable \haskell{f}. The instances of the class must provide implementations of this function where \haskell{f} is replaced by the type being made an instance.
+        A typeclass is similar to an `interface' in object-oriented languages: it defines a set of functions that must be implemented by all instances of the class. In the example above, the \haskell{Functor} class defines the \haskell{fmap} function and specifies its type, parameterised by a type variable \haskell{f}. The instances of the class must provide implementations of this function where \haskell{f} is replaced by the type being made an instance.
 
         Functions of a class can be used on any instance of that class, such as in the expression \haskell{fmap (*2) [1,2,3]} which evaluates to \haskell{[2,4,6]}, or \haskell{fmap (fmap (*2)) [Just 1, Nothing]} which evaluates to \haskell{[Just 2, Nothing]}.
 
@@ -120,7 +132,7 @@ This chapter covers various aspects of the preparation for the project, includin
             Administrative normal form intuitively corresponds to thunks by only allowing trivial arguments to be
             passed to functions.
         }
-        \item Typeclasses provide statically-typed overloading, implemented using dictionary passing.
+        \item Typeclasses provide statically typed overloading, implemented using dictionary passing.
         \end{itemize}
     }
 }
@@ -142,7 +154,7 @@ This chapter covers various aspects of the preparation for the project, includin
 
         The renamer renames each variable so that later stages can assume each variable name is unique: this reduces complexity by removing the possibility of variable shadowing (eg.\ \haskell{let x = 1 in let x = 2 in x}). 
 
-        Dependency analysis computes a partial order on the source declarations so that the typechecker can process them in a valid order.
+        Dependency analysis computes a directed graph representing syntactic dependencies between the source declarations so that the typechecker can process them in dependency order.
     }
     \item[Type Checker]
     {
@@ -176,13 +188,11 @@ This chapter covers various aspects of the preparation for the project, includin
 {
     Given the number of stages in the compiler and the scale of the project, tests are important to ensure that each component has the intended behaviour.
     
-    Haskell is a good language for writing testable code in: pure functions are usually easier to unit test than impure functions as their behaviour is only affected by the parameters, independent of any global mutable state. The pipeline of the compiler is entirely pure, with impure code only for reading the source file and writing the compiled files. This made testing each stage reliable and strictly independent of the adjacent pipeline sections.
+    Haskell is a good language for writing testable code in: pure functions are usually easier to unit-test than impure functions as their behaviour is only affected by the parameters, independent of any global mutable state. The pipeline of the compiler is entirely pure, with impure code only for reading the source file and writing the compiled files. This made testing each stage reliable and strictly independent of the adjacent pipeline sections.
 
-    Regression tests were implemented for all major bugs discovered, and ensure that the compiler stages don't reintroduce incorrect behaviour. 
+    Regression tests were implemented for all major bugs discovered, and ensure that the compiler stages do not reintroduce incorrect behaviour. 
 
     Finally, end-to-end tests ensure that the compiler successfully processes a given Haskell source file and that the executable produced computes the correct result, treating the compiler as a black box. This extremely coarse testing method was very effective for discovering the existence of bugs, which could then be tracked down using standard debugging techniques and isolated using the finer-grained unit and regression tests. 
-
-    \todo[inline]{kc506: check this doesn't repeat stuff from the evaluation chapter}
 }
 \section{Tools}
 {

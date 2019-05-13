@@ -1,4 +1,0 @@
-#!/bin/bash
-
-# Allow for lexer to be loaded from a local file
-pygmentize -x "$@"

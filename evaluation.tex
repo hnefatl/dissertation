@@ -97,7 +97,7 @@
 {
     Although performance was not an important aspect of the success criteria, it's still interesting to evaluate the effectiveness of optimisations on the output program, and the performance of the compiler and its output compared to other Haskell to JVB compilers.
 
-    The two compilers used for comparisons are Eta and Frege. Eta is a fork of GHC that replaces the backend with one targeting JVB: it can take advantage of the powerful optimisations already available in the front- and middle-end of GHC, which is the world-leading Haskell compiler, so I expect it to perform better than both my compiler and Frege. Frege is a from-scratch compiler that compiles to Java instead of JVB, then uses a Java compiler to produce JVB. I expect Frege to perform better than my compiler, given the maturity of the project (under development since at least 2011).
+    The two compilers used for comparisons are Eta and Frege. Eta is a fork of GHC that replaces the backend with one targeting JVB: it can take advantage of the powerful optimisations already available in the front- and middle-end of GHC, which is the world-leading Haskell compiler, so I expected it to perform better than both my compiler and Frege. Frege is a from-scratch compiler that compiles to Java instead of JVB, then uses a Java compiler to produce JVB. I expect Frege to perform better than my compiler, given the maturity of the project (under development since at least 2011).
 
     Both Eta and Frege enable optimisations by default, so all metrics given for them have optimisations enabled. Metrics given for my compiler are labelled to indicate whether or not optimisations have been applied.
 
@@ -117,7 +117,7 @@
     {
         Figure \ref{fig:perf} demonstrates the runtime performance of the benchmark programs after compilation by the different compilers. It is evident that the performance of programs compiled by my compiler is significantly lower than those from Frege or Eta, but also that applying optimisations can produce a reasonable speedup.
 
-        Interestingly Frege produced more performant programs than Eta, which wasn't expected.
+        Interestingly Frege produced more performant programs than Eta, which wasn't expected, given that Eta leverages the work done on the GHC compiler.
 
         \begin{figure}[h]
             \centering
@@ -125,7 +125,7 @@
             \includegraphics[width=0.9\textwidth]{graphs/perf.pdf}
             \caption{Median runtime in milliseconds of the benchmark programs. Error bars show 25th and 75th percentiles.}
             \label{fig:perf}
-        
+
             \todo[inline]{Update to use min with error bars showing 25th+50th quartile or similar}
         \end{figure}
 
@@ -145,8 +145,12 @@
     }
     \subsection{Compiler Performance}
     {
-        Figure \ref{fig:compiler-perf} presents the minimum time taken to compile each benchmark program: my compiler is faster than both Eta and Frege to compile all benchmarks.
+        Figure \ref{fig:compiler-perf} presents the minimum time taken to compile each benchmark program: my compiler is faster than both Eta and Frege to compile all benchmarks except for \monospace{mergesort}. 
+
+        Figure \ref{fig:compiler-perf-ackermann} shows the same metrics for just the \monospace{ackermann} benchmark on my compiler, so the times for each stage can be seen more clearly. It's clear that code generation is the most expensive stage in the main pipeline: profiling reveals that this is mostly due to the inefficient implementation of parts of the \monospace{hs-java} library. Efforts were made to improve the performance, in one case halving the time spent in code generation\footnote{\url{https://github.com/hnefatl/hs-java/commit/5cbd5c3995161199442310ac30c101b0497a7f98}} for the \monospace{mergesort} benchmark, but as this was an unexpected work package I ran out of time before being able to improve the performance to a satisfactory level.
         
+        The poor performance when compiling the \monospace{mergesort} benchmark appears to be due to the large number of bindings involved: processing the list of 1000 input numbers pushes the inefficient stages to their limit. 
+
         \begin{figure}[h]
             \centering
             \captionsetup{width=0.8\textwidth}
@@ -154,8 +158,15 @@
             \caption{Minimum time taken to compile the benchmark program. The coloured sections indicate the amount of time spent in each stage of the compiler.}
             \label{fig:compiler-perf}
         \end{figure}
-        
-        It's interesting that the compiler takes less time to process the input when performing optimisations than when not. This appears to be due to a significant amount of the compilation time being spent in the code generation stage, and compressing and writing the compiled classes into a jar file: the unreachable code elimination optimisation described in Section \ref{sec:unreachable-elim} can massively reduce the amount of code that reaches code generation, which in turn reduces the amount of bytecode that needs to be compressed and written to disk.
+        \begin{figure}[h]
+            \centering
+            \captionsetup{width=0.8\textwidth}
+            \includegraphics[width=0.9\textwidth]{graphs/compiler_perf_mine_ackermann.pdf}
+            \caption{Runtime of each stage in the compiler for the \monospace{ackermann} benchmark.}
+            \label{fig:compiler-perf-ackermann}
+        \end{figure}
+
+        It's interesting that the compiler usually takes less time to process the input when performing optimisations than when not. This appears to be due to a significant amount of the compilation time being spent in the code generation stage, and compressing and writing the compiled classes into a jar file: the unreachable code elimination optimisation described in Section \ref{sec:unreachable-elim} can massively reduce the amount of code that reaches code generation, which in turn reduces the amount of bytecode that needs to be compressed and written to disk.
     }
     \subsection{Executable Size}
     {
@@ -173,15 +184,15 @@
     }
     \subsection{Impact of Optimisations}
     {
-        \todo[inline]{Yeah this doesn't look good: check this is correct + work out why?}
-
         \begin{figure}[H]
             \centering
             \captionsetup{width=0.8\textwidth}
             \includegraphics[width=0.9\textwidth]{graphs/perf_by_opt.pdf}
-            \caption{Runtime of the benchmarks after compilation with various optimisations: L stands for let-lifting, D for binding deduplication, and U for unreachable code elimination.}
+            \caption{Minimum runtime of the benchmarks after compilation with various optimisations: L stands for let-lifting, D for binding deduplication, and U for unreachable code elimination.}
             \label{fig:opt-perf}
         \end{figure}
+
+
 
         \todo[inline]{U produces exactly the same ILB and bytecode for all the functions not eliminated (at least for ackermann). Chalk it up as a mysterious JVM interaction, as the code run is exactly the same. Profiling showed that all functions are called the same number of times!}
 

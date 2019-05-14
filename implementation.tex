@@ -51,16 +51,8 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
         \end{haskellfigure}
 
         To eliminate the potential for subtle bugs stemming from this feature, the renamer pass gives each distinct variable/type variable in the source a unique name (in the above example, the variable \haskell{x} might be renamed to \haskell{v0} and the type variable renamed to \haskell{tv0}, provided those names have not already been used).
-        
-        The renamer traverses the syntax tree maintaining a mapping from a syntactic variable/type variable name to an associated stack of unique semantic variable names (in Haskell, a \haskell{Map VariableName [UniqueVariableName]}):
 
-        \begin{itemize}
-        \item When processing the binding site of a new syntactic variable (eg.\ a let binding, a lambda argument, a pattern match...), a fresh semantic name is generated and pushed onto the stack associated with the syntactic variable.
-        \item Whenever we leave the scope of a syntactic variable, we pop the top semantic name from the associated stack.
-        \item When processing a use site of a syntactic variable, we replace it with the current top of the associated stack.
-        \end{itemize}
-
-        An analogously constructed mapping is maintained for type variables, but is kept separate from the variable mapping: otherwise the keys can conflict in code such as \haskell{x :: x}.
+        \todo[inline]{I removed the implementation explanation as it's pretty obvious and was an easy way to save words. Does it still read okay?}
 
         Type constants such as \haskell{Bool} from \haskell{data Bool = False | True} and typeclass names like \haskell{Num} from \haskell{class Num a where ...} are not renamed: these names are already guaranteed to be unique by the syntax of Haskell, and renaming them would mean we need to maintain more mappings and carry more state through the compiler as to what they were renamed to.
     }
@@ -76,7 +68,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
 
         The strongly connected components (SCCs) of the dependency graph correspond to sets of mutually recursive declarations, and the partial order between components gives us the order to typecheck each set. The compiler uses an existing Haskell library to compute the SCCs (\texttt{containers}\footnote{\url{https://hackage.haskell.org/package/containers}}), which uses the algorithm presented by M. Sharir\cite{SCC}.
 
-        For example, from the dependency graph in Figure \ref{fig:dependency-graph} we know that: we need to typecheck \(d_3\), \(d_4\), and \(d_5\) together as they are contained within the same strongly-connected component so are mutually recursive; we have to typecheck \(d_2\) last, after both other components.
+        For example, from the dependency graph in Figure \ref{fig:dependency-graph} we know that: we need to typecheck \(d_3\), \(d_4\), and \(d_5\) together as they are contained within the same strongly-connected component so are mutually recursive; we have to typecheck \(d_2\) last, after both other components. Typechecking declarations within the same component can proceed in an arbitrary order.
 
         \begin{figure}[h]
         \centering
@@ -99,8 +91,6 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
         \label{fig:dependency-graph}
         \end{figure}
 
-        Typechecking declarations within the same component can proceed in an arbitrary order, we just need to ensure that the all of the type variables for the names bound by the declarations are available while processing each individual declaration.
-
         \paragraph*{Special cases due to Typeclasses}
 
         This process given above works for languages without ad-hoc overloading, like SML. However, in Haskell there are some complications introduced by typeclasses:
@@ -108,8 +98,11 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
         \begin{itemize}
         \item
         {
-            Typeclass member variables can be declared multiple times within the same scope. For example:
-            
+            Typeclass member variables can be declared multiple times within the same scope. For example, the multiple declarations of \haskell{(+)} in Figure \ref{fig:typeclass-scope} do not conflict, while \haskell{x} in Figure \ref{fig:top-scope} does conflict.
+
+            \begin{figure}[H]
+            \centering
+            \begin{subfigure}[t]{0.4\textwidth}
             \begin{haskellfigure}
             class Num a where
                 (+) :: a -> a -> a
@@ -118,13 +111,20 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
             instance Num Float where
                 x + y = ...
             \end{haskellfigure}
-
-            Here the multiple declarations of \haskell{(+)} do not conflict: this is a valid program. However, the following program does have conflicting variables, as \haskell{x} is not a typeclass member and is not declared inside an \haskell{instance} declaration:
-
+            \caption{}
+            \label{fig:typeclass-scope}
+            \end{subfigure}
+            \hspace{5mm}
+            \begin{subfigure}[t]{0.4\textwidth}
             \begin{haskellfigure}
             x = True
             x = False
             \end{haskellfigure}
+            \caption{}
+            \label{fig:top-scope}
+            \end{subfigure}
+            \caption{}
+            \end{figure}
 
             These declaration conflicts can be expressed as a binary symmetric predicate on declarations, as presented in Figure \ref{fig:conflict-grid}, where:
 
@@ -158,11 +158,11 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
             \texttt{InstSym} \(x_2\) \(c_2\) \(t_2\) & & & & & \makecell{\(x_1=x_2 \wedge (c_1 \neq c_2 \vee t_1=t_2)\)}
             \\
             \end{tabular}
-            \caption{The conflict relation: entries below the diagonal are omitted as the predicate is symmetric}
+            \caption{The declaration conflict relation: entries below the diagonal are omitted as the predicate is symmetric.}
             \label{fig:conflict-grid}
             \end{figure}
 
-            Using this table we can see that the multiple declarations for \haskell{(+)} in the example above are \monospace{InstSym (+) Num Int} and \monospace{InstSym (+) Num Float} so do not conflict, while the declarations for \haskell{x} above are both \monospace{Sym x} so do conflict.
+            Using this table we can see that the multiple declarations for \haskell{(+)} in Figure \ref{fig:typeclass-scope} are \monospace{InstSym (+) Num Int} and \monospace{InstSym (+) Num Float} so do not conflict, while the declarations for \haskell{x} in Figure \ref{fig:top-scope} are both \monospace{Sym x} so do conflict.
         }
         \item\label{sec:dependencies-syntactic-semantic}
         {
@@ -758,7 +758,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
     }
     \subsection{Hooks}\label{sec:hooks}
     {
-        Many standard functions operating on primitive types like \haskell{Int} and \haskell{Char}, such as \haskell{(+)} and \haskell{(==)}, cannot be implemented in Haskell. These operations need to be implemented at the same level as \haskell{Int} is implemented, in bytecode. However, \textit{some} form of definition has to be given in the Haskell source, so that the typechecker can infer that eg.\ the instance exists.
+        Many standard functions operating on primitive types like \haskell{Int}, such as \haskell{(+)} and \haskell{(==)}, cannot be implemented in Haskell. These operations need to be implemented at the same level as \haskell{Int}, in bytecode. However, \textit{some} form of definition has to be given in the Haskell source, so that the typechecker can infer that eg.\ the instance exists.
 
         \begin{figure}[h]
         \begin{haskellfigure}

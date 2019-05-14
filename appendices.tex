@@ -2,6 +2,44 @@
 
 \begin{document}
 \begin{appendices}
+\chapter{Implementation of \haskell{Integer}}\label{appendix:integer-literal}
+{
+    Here is an example implementation of \haskell{Integer}, Haskell's arbitrary precision integral value type: it is essentially a wrapper around Java's \java{BigInteger} class. The copious uses of underscores is explained in Section \ref{sec:jvm-sanitisation}.
+
+    \begin{javafigure}
+    import java.math.BigInteger;
+
+    public class _Integer extends Data {
+        public BigInteger value;
+        public static _Integer _make_Integer(BigInteger x) {
+            _Integer i = new _Integer();
+            i.value = x;
+            return i;
+        }
+        public static _Integer _make_Integer(String x) {
+            return _make_Integer(new BigInteger(x));
+        }
+
+        public static _Integer add(_Integer x, _Integer y) {
+            return _make_Integer(x.value.add(y.value));
+        }
+        ... // Analogous functions for subtraction and multiplication
+
+        public static boolean eq(_Integer x, _Integer y) { ... }
+
+        public static String show(_Integer x) { ... }
+    }
+    \end{javafigure}
+
+    The \java{_make_Integer(String)} function is used by the compiler to construct \haskell{Integer} literals: it allows a Java \java{_Integer} object to be constructed from a Java string representation. For example, the bytecode that creates the Haskell literal \haskell{2} would load the string \monospace{"2"} from the constant pool then invoke the creation method:
+
+    \begin{monospacefigure}
+    ldc          #210       // String 2
+    invokestatic #16        // Method tmp/_Integer._make_Integer:(Ljava/lang/String;)Ltmp/_Integer;
+    \end{monospacefigure}
+
+    The \java{add}, \java{eq}, etc. methods are Java implementations of the functions required by Haskell's \haskell{Num}, \haskell{Eq} and \haskell{Show} typeclass instances for \haskell{Integer}. For `builtin' types, the implementation of these typeclass functions need to be given in Java, as they cannot be expressed in Haskell. Section \ref{sec:hooks} on Hooks covers this aspect of code generation in more detail.
+}
 \chapter{The \java{Function} class}\label{appendix:function}
 {
     \begin{javafigure}

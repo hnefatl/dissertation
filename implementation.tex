@@ -26,7 +26,6 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
         \end{haskellfigure}
         \caption{An example of a multi-parameter typeclass}
     \end{figure}
-
 }
 \section{Preprocessor}
 {
@@ -282,7 +281,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
 
         \subsubsection{Restricted Polymorphism}
         {
-            One departure from conventional polymorphic type systems is that Haskell's type system restricts polymorphism for some terms: let-bound variables are polymorphic over all their free type variables, while function parameters are never polymorphic. In practice, this means that in the code below, \haskell{f :: #\(\forall \alpha.\;\alpha \rightarrow a\)#} whereas \haskell{g :: #\(\alpha \rightarrow \alpha\)#}. The difference in semantics ensures that type inference remains decidable. 
+            One departure from conventional polymorphic type systems is that Haskell's type system restricts polymorphism for some terms: let-bound variables are polymorphic over all their free type variables, while function parameters are never polymorphic. In practice, this means that in the code below, \haskell{f :: #\(\forall \alpha.\;\alpha \rightarrow \alpha\)#} whereas \haskell{g :: #\(\alpha \rightarrow \alpha\)#}. The difference in semantics ensures that type inference remains decidable. 
 
             \begin{haskellfigure}
             let f x = x in const (f True) (f 1) :: Bool -- This is fine
@@ -585,17 +584,6 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
         \item
         {
             There are now two terms for applications, one for functions (\haskell{ExpApp}) and one for data constructors (\haskell{ExpConApp}). The distinction is necessary for code generation, when a function application results in a jump to new executable code while a constructor application creates a new heap object. 
-
-            \haskell{ExpConApp} also requires all its arguments to be present: it cannot be a partial application.
-            Haskell treats datatype constructors as functions, so the following is a valid program:
-
-            \begin{haskellfigure}
-            data Pair a b = Pair a b
-            x = Pair 1
-            y = x 2
-            \end{haskellfigure}
-
-            At the implementation level however, functions and data constructors are necessarily very different, so distinguishing them within this IL makes code generation easier.
         }
         \item
         {
@@ -643,7 +631,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
 
         \subsubsection{Literals}\label{sec:literals}
         {
-            Literals are builtin types that cannot be defined as an Haskell ADT, such as \haskell{Int}. Any such type is a subclass of the \java{Data} class, which is itself a subclass of the \java{HeapObject} class that a rather boring implementation of the abstract \java{enter} method. Any literal is already in WHNF, so evaluation to WHNF is trivial:
+            Literals are builtin types that cannot be defined as an Haskell ADT, such as \haskell{Int}. Any such type is a subclass of the \java{Data} class, which implements the trivial reduction to WHNF (all literals are already in WHNF).
 
             \begin{javafigure}
             public abstract class Data extends HeapObject {
@@ -654,41 +642,9 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
             }
             \end{javafigure}
 
-            Here is an example literal implementation for \haskell{Integer}, Haskell's arbitrary precision integral value type. It is implemented using Java's \java{BigInteger} class to perform all the computation. The copious uses of underscores is explained in Section \ref{sec:jvm-sanitisation}.
+            An example implementation of the \haskell{Integer} literal type using this class is given in Appendix \ref{appendix:integer-literal}.
 
-            \begin{javafigure}
-            import java.math.BigInteger;
-
-            public class _Integer extends Data {
-                public BigInteger value;
-                public static _Integer _make_Integer(BigInteger x) {
-                    _Integer i = new _Integer();
-                    i.value = x;
-                    return i;
-                }
-                public static _Integer _make_Integer(String x) {
-                    return _make_Integer(new BigInteger(x));
-                }
-
-                public static _Integer add(_Integer x, _Integer y) {
-                    return _make_Integer(x.value.add(y.value));
-                }
-                ... // Analogous functions for subtraction and multiplication
-
-                public static boolean eq(_Integer x, _Integer y) { ... }
-
-                public static String show(_Integer x) { ... }
-            }
-            \end{javafigure}
-
-            The \java{_make_Integer(String)} function is used by the compiler to construct \haskell{Integer} literals: it allows a Java \java{_Integer} object to be constructed from a Java string representation. For example, the bytecode that creates the Haskell literal \haskell{2} would load the string \monospace{"2"} from the constant pool then invoke the creation method:
-
-            \begin{monospacefigure}
-            ldc          #210       // String 2
-            invokestatic #16        // Method tmp/_Integer._make_Integer:(Ljava/lang/String;)Ltmp/_Integer;
-            \end{monospacefigure}
-
-            The \java{add}, \java{eq}, etc. methods are Java implementations of the functions required by Haskell's \haskell{Num}, \haskell{Eq} and \haskell{Show} typeclass instances for \haskell{Integer}. For `builtin' types, the implementation of these typeclass functions need to be given in Java, as they cannot be expressed in Haskell. Section \ref{sec:hooks} on Hooks covers this aspect of code generation in more detail.
+            The classes implementing each literal provide their own type-specific initialisation functions, which are invoked at runtime depending on the type of the literal being constructed.
         }
         \subsubsection{Datatypes}
         {
@@ -729,7 +685,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
             \begin{itemize}
             \item
             {
-                Creation: construction of a new closure representing a function of a given arity, without any arguments having been applied yet but possibly including values of free variables in scope of the closure.
+                Creation: construction of a new closure representing a function of given arity, without any arguments applied yet but possibly including values of free variables in scope of the closure.
             }
             \item
             {
@@ -748,7 +704,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
             \begin{itemize}
             \item
             {
-                \java{_#\(f\)#Impl}, which takes two arrays of \java{HeapObject}s as arguments, one holding the arguments for the Haskell function (of length \(n_a\)) and one holding the free variables used by the Haskell function (of length \(n_f\)), and returns a \java{HeapObject} representing the result of applying the function.
+                \java{_#\(f\)#Impl}, which takes two arrays of \java{HeapObject}s as arguments, one holding the arguments for the Haskell function (of length \(n_a\)) and one holding the free variables used by the Haskell function (of length \(n_f\)), returning a \java{HeapObject} representing the result of applying the function.
             }
             \item
             {
@@ -756,8 +712,6 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
             }
             \end{itemize}
             
-            \java{Function}'s \java{freeVariables} field has type \java{HeapObject[]} as we know at initialisation time exactly how many free variables the function has, and it does not change. The \java{arguments} field is an \java{ArrayList<HeapObject>} so that we can handle partial applications and over-applications by only adding arguments when they are applied.
-
             Haskell function applications are lowered into bytecode that:
             \begin{enumerate}
             \item
@@ -766,17 +720,13 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
             }
             \item
             {
-                \textbf{Clones} the \java{Function} object. This step is subtle but vital, as each argument applied to the function mutates the \java{Function} object by storing additional arguments.
-                
-                If we are using a local closure like \haskell{let add1 = (+) 1 in add1 2 * add1 3} then \haskell{add1} will be a local \java{Function} object with \java{inner} pointing to the implementation of \haskell{(+)} and one applied argument (a \java{Data} instance representing 1). Both \haskell{add1 2} and \haskell{add1 3} will mutate the object to add the argument being applied (see the next step for details), which leads to the \java{Function} object after \haskell{add1 3} having 3 stored arguments.
-
-                Cloning the function essentially maintains the same references to arguments and free variables, but creates new (non-shared) containers to hold them, avoiding the above issue.
+                \textbf{Clones} the \java{Function} object. This step is subtle but vital, as each argument applied to the function mutates the \java{Function} object by storing additional arguments. Cloning the function maintains the same shared references to arguments and free variables, but creates new (non-shared) containers to hold them.
                 
                 This is a shallow clone -- if we used a deep clone, recursively cloning the arguments and free variables, then we would lose the performance benefit of graph reduction where we can use an already computed value instead of recomputing it ourselves, and increase memory usage. 
             }
             \item
             {
-                Invokes \java{addArgument} on the cloned object for each argument in the application, storing them later use.
+                Invokes \java{addArgument} on the cloned object for each argument in the application, storing them for later use.
             }
             \item
             {
@@ -789,7 +739,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
                 }
                 \item
                 {
-                    The function has exactly the right number of arguments, so WHNF demands we reduce it. This is implemented by calling the \java{inner} function that performs the actual implementation of the Haskell function with the free variables and arguments we have stored, then ensuring the result has been evaluated to WHNF by calling \java{enter}, then returning it.
+                    The function has exactly the right number of arguments, so WHNF demands we reduce it. This is implemented by calling the \java{inner} function that performs the actual implementation of the Haskell function with the free variables and arguments we have stored, then ensuring the result itself is in WHNF by calling \java{enter}, then returning it.
                 }
                 \item
                 {
@@ -985,13 +935,13 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
 
     \subsection{\monospace{compiler}}
     {
-        The vast majority of code written was in a library named \monospace{compiler}, which exposes an API for compiling Haskell programs -- the code for this library is within the \monospace{src} directory. Files corresponding to major stages in the compiler pipeline are shown in the directory tree below. A number of source files have been omitted for clarity, as they contain utility functions or auxiliary code that is used by one of the major files. The \monospace{Compiler.hs} source file does not correspond to a single pipeline stage, but contains functions that string all of the other pipeline stages together.
+        The vast majority of code written was in a library named \monospace{compiler}, which exposes an API for compiling Haskell programs -- the code for this library is within the \monospace{src} directory. \monospace{Compiler.hs} contains functions that string all of the pipeline stages together.
 
         This library contains 6344 lines of Haskell source code.
     }
     \subsection{\monospace{compiler-exe}}
     {
-        The compiler executable is imaginatively named \monospace{compiler-exe}, and the single 97-line source file \monospace{Main.hs} resides in the \monospace{app} directory: it contains the application entry point and code for handling command-line arguments, before passing control over to the \monospace{compiler} library for the actual compilation process.
+        The compiler executable is imaginatively named \monospace{compiler-exe}, with the single 97-line source file \monospace{Main.hs} residing in the \monospace{app} directory: it contains the application entry point and code for handling command-line arguments, before passing control over to the \monospace{compiler} library for the actual compilation process.
     }
     \subsection{Tests}
     {
@@ -1003,7 +953,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
     {
         The code for evaluating the performance of the compiler is in the \monospace{benchmarks} directory, and consists primarily of Python 3 scripts for representing, compiling, and executing a variety of benchmark programs using a number of compilers, along with a script for plotting the data.
 
-        The \monospace{...benchmark.py} files define classes of benchmark and the \monospace{runbenchmarks.py} file creates objects of those classes to represent the various benchmarks and executes them.
+        The \monospace{*benchmark.py} files define classes of benchmark and the \monospace{runbenchmarks.py} file creates objects of those classes to represent the various benchmarks and executes them.
 
         The \monospace{programs} directory contains source files for the benchmarks, and the \monospace{results} directory contains the data obtained from the benchmarks.
 
@@ -1013,9 +963,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
     {
         The \monospace{hs-java} library\footnote{\url{https://hackage.haskell.org/package/hs-java}} is a library developed by Ilya V. Portnov for generating Java Bytecode. During my project, I made a number of modifications to the library, resulting in quite significant changes from the original. My fork of the library is available at \url{https://github.com/hnefatl/hs-java}, and has Git additions/deletions of \gitstats{1,772}{1,431}: the modified version of the library contains 3569 lines of Haskell source.
 
-        \monospace{Assembler.hs} defines a representation of the JVB instruction set, \monospace{ClassFile.hs} defines a representation of Java Class files, and \monospace{Converter.hs} defines functions for converting the class file representation to and from a raw byte representation. The files within the \monospace{Builder} directory define a useful API for generating bytecode from Haskell using a monad named \haskell{GeneratorT}, and any other files simply contain utility functions.
-
-        The files under the \monospace{Java} directory define convenience variables for use when generating bytecode that refer to builtin Java classes such as \java{java.lang.Object}.
+        \monospace{Assembler.hs} defines a representation of the JVB instruction set, \monospace{ClassFile.hs} defines a representation of Java Class files, and \monospace{Converter.hs} defines functions for converting the class file representation to and from a raw byte representation. The files within the \monospace{Builder} directory define a useful API for generating bytecode from Haskell using a monad named \haskell{GeneratorT}.
     }
 }
 

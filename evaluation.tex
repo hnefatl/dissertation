@@ -109,13 +109,13 @@
             \centering
             \captionsetup{width=0.8\textwidth}
             \includegraphics[width=0.9\textwidth]{graphs/perf.pdf}
-            \caption{Median runtime in milliseconds of the benchmark programs. Error bars show 25th and 75th percentiles.}
+            \caption{Minimum runtime of the benchmark programs. Minimum is plotted instead of median as it is more reflective of program speed without system load.}
             \label{fig:perf}
         \end{figure}
         \begin{figure}[H]
             \centering
             \captionsetup{width=0.9\textwidth}
-            \includegraphics[width=0.7\textwidth]{graphs/perf_profile_ackermann.pdf}
+            \includegraphics[width=0.8\textwidth]{graphs/perf_profile_ackermann.pdf}
             \caption{A breakdown of the percentage of execution time spent in each Java function in the generated code (`inner time') for the \monospace{ackermann} benchmark. Functions with inner time of less than 3\% are grouped into a single wedge.}
             \label{fig:inner-time}
         \end{figure}

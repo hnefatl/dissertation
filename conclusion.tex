@@ -23,6 +23,8 @@ I have learned a great deal about the design of compilers from this project, as 
     Only a few optimisations were implemented in this project, mostly due to time constraints. Strictness analysis is an optimisation that I did not implement but expect would product sizeable performance improvements, as it reduces the overhead introduced by lazy evaluation in cases where the semantics of the program are unchanged. Inlining is another major optimisation, made easier to implement by Haskell's purity.
 
     Another exciting extension would be replacing the typechecking component with the OutsideIn(X) framework described in Vytiniotis et al.\ \cite{OutsideIn}, which would open up opportunities for supporting modern extensions to Haskell's type system such as GADTs and multi-parameter typeclasses. 
+
+    Finally, it would not be too hard to extend the existing `Hooks' implementation to provide the programmer with a foreign function interface (mentioned in Section \ref{sec:hooks}), which would add significant expressive power to the compiler.
 }
 
 \end{document}

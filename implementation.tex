@@ -8,7 +8,7 @@
     \label{fig:compiler-layout}
 \end{figure}
 
-The compiler consists of a number of stages and substages, as shown in Figure \ref{fig:compiler-layout}. A brief overview of each stage was given in the preparation chapter (Section \ref{sec:compiler-structure}), but this chapter presents more in-depth descriptions. A summary is given at the end of the chapter, along with an overview of the code repository structure.
+\compilername consists of a number of stages and substages, as shown in Figure \ref{fig:compiler-layout}. A brief overview of each stage was given in the preparation chapter (Section \ref{sec:compiler-structure}), but this chapter presents more in-depth descriptions. A summary is given at the end of the chapter, along with an overview of the code repository structure.
 
 \section{Frontend}
 {
@@ -64,9 +64,9 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
     {
         When typechecking, the order of processing declarations matters: we cannot infer the type of \haskell{foo = bar baz} until we have inferred the types of \haskell{bar} and \haskell{baz}. The dependency analysis stage determines the order in which the typechecker should process declarations. 
 
-        We compute the sets of free/bound variables/type variables/type constants for each declaration, then construct a dependency graph -- each node is a declaration, with an edge from \(A\) to \(B\) if any bound variables/type variables/type constants at \(A\) are free in \(B\). It is important to distinguish between variables/type variables and type constants, as otherwise name conflicts could occur (as type constants are not renamed). This separation is upheld in the compiler by using different types for each, and is represented in the dependency graph in Figure \ref{fig:dependency-graph} by colouring variables red and constants blue.
+        We compute the sets of free/bound variables/type variables/type constants for each declaration, then construct a dependency graph -- each node is a declaration, with an edge from \(A\) to \(B\) if any bound variables/type variables/type constants at \(A\) are free in \(B\). It is important to distinguish between variables/type variables and type constants, as otherwise name conflicts could occur (as type constants are not renamed). This separation is upheld in code by using different types for each, and is represented in the dependency graph in Figure \ref{fig:dependency-graph} by colouring variables red and constants blue.
 
-        The strongly connected components (SCCs) of the dependency graph correspond to sets of mutually recursive declarations, and the partial order between components gives us the order to typecheck each set. The compiler uses an existing Haskell library to compute the SCCs (\texttt{containers}\footnote{\url{https://hackage.haskell.org/package/containers}}), which uses the algorithm presented by M. Sharir\cite{SCC}.
+        The strongly connected components (SCCs) of the dependency graph correspond to sets of mutually recursive declarations, and the partial order between components gives us the order to typecheck each set. I use an existing Haskell library to compute the SCCs (\texttt{containers}\footnote{\url{https://hackage.haskell.org/package/containers}}), which uses the algorithm presented by M. Sharir\cite{SCC}.
 
         For example, from the dependency graph in Figure \ref{fig:dependency-graph} we know that: we need to typecheck \(d_3\), \(d_4\), and \(d_5\) together as they are contained within the same strongly-connected component so are mutually recursive; we have to typecheck \(d_2\) last, after both other components. Typechecking declarations within the same component can proceed in an arbitrary order.
 
@@ -238,7 +238,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
 
         A quantified/polymorphic type is a type with a set of quantifying type variables which must be instantiated before use: \haskell{forall a. Eq a => a -> a -> Bool}. Haskell type signatures are implicitly quantified over all the free type variables.
 
-        During type inference, types are almost always polymorphic and often overloaded (\haskell{(==) :: forall a. Eq a => a -> a -> Bool}, \haskell{head :: forall a. [a] -> a}, ...). After deoverloading (Section \ref{sec:deoverloading}), types are never overloaded. This difference is enforced in the compiler by using \haskell{QuantifiedType} and \haskell{QuantifiedSimpleType} respectively.
+        During type inference, types are almost always polymorphic and often overloaded (\haskell{(==) :: forall a. Eq a => a -> a -> Bool}, \haskell{head :: forall a. [a] -> a}, ...). After deoverloading (Section \ref{sec:deoverloading}), types are never overloaded. This difference is enforced in code by using \haskell{QuantifiedType} and \haskell{QuantifiedSimpleType} respectively.
     }
     \subsection{Type Inference}
     {
@@ -288,13 +288,13 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
         {
             There is a type-system correctness check called the `ambiguity check', which ensures that at the use site of any variable with overloaded type has all type variables either resolved to a ground type or exposed in the type of the enclosing expression. This prevents programs which have ambiguous semantics (multiple possible runtime behaviours) from being reported as valid (this issue is described in Section 11.5.1 of `Typing Haskell in Haskell' \cite{THIH}). 
 
-            My compiler does not implement this check, which causes some programs to fail compilation during the code generation stage instead of during typechecking. This feature was omitted in order to spend development time on the later stages of the compiler.
+            \compilername does not implement this check, which causes some programs to fail compilation during the code generation stage instead of during typechecking. This feature was omitted in order to spend development time on the later stages of the compiler.
 
             Defaulting\footnote{\url{https://www.haskell.org/onlinereport/decls.html\#sect4.3.4}} is a user-friendly defence against the verbosity of giving unambiguous types. This feature was not implemented as the time required was expected to be better spent elsewhere.
         }
         \subsubsection*{Summary}
         {
-            Having completed the three passes of type inference and checking, and handling the edge cases associated with typeclasses, the output of the type inference component is a Haskell AST where expressions are tagged with their (possibly overloaded) types. This forms the input for the final component before the compiler begins lowering the program into intermediate languages.   
+            Having completed the three passes of type inference and checking, and handling the edge cases associated with typeclasses, the output of the type inference component is a Haskell AST where expressions are tagged with their (possibly overloaded) types. This forms the input for the final component of the pipeline prior to lowering into intermediate languages.   
         }
     }
     \subsection{Deoverloader}\label{sec:deoverloading}
@@ -391,7 +391,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
 
             This approach can be easily extended to typeclasses with `superclasses' (by storing superclass dictionaries inside subclass dictionaries) and instance declarations with contexts (by making functions that construct dictionaries from other dictionaries), such as those shown in Figure \ref{fig:instance-context}. 
 
-            My compiler does not support these uses as the development focus at this stage was on reaching a minimal working subset of Haskell. However, the existing implementation demonstrates that support is definitely achievable.
+            \compilername does not support these uses as the development focus at this stage was on reaching a minimal working subset of Haskell. However, the existing implementation demonstrates that support is definitely achievable.
 
             \begin{figure}[h]
             \centering
@@ -418,7 +418,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
 }
 \section{Lowering and Intermediate Languages}
 {
-    There are two intermediate languages within the compiler, imaginatively named Intermediate Languages A and B (ILA and ILB respectively). There is also a minor language named ILA-Administrative Normal Form (ILA-ANF), which is simply a subset of ILA that helps restrict the terms to those in Administrative Normal Form (ANF).
+    There are two intermediate languages within \compilername, imaginatively named Intermediate Languages A and B (ILA and ILB respectively). There is also a minor language named ILA-Administrative Normal Form (ILA-ANF), which is simply a subset of ILA that helps restrict the terms to those in Administrative Normal Form (ANF).
 
     \subsection{Intermediate Language A}
     {
@@ -589,9 +589,9 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
 {
     Code generation is, from the surface, quite a mechanically simple process. ILB is a small language, so there are few terms to lower into bytecode. However, implementing the semantics of these terms in Java Bytecode is complex.
 
-    The \monospace{hs-java} library was used to provide a Haskell representation of bytecode that could then be serialised to a Java \monospace{.class} file, but a number of modifications were made to add support for Java 8 features required by the compiler and improve performance: the forked project can be found at \url{https://github.com/hnefatl/hs-java}.
+    The \monospace{hs-java} library was used to provide a Haskell representation of bytecode that could then be serialised to a Java \monospace{.class} file, but a number of modifications were made to add support for Java 8 features required by the project and improve performance: the forked project can be found at \url{https://github.com/hnefatl/hs-java}.
 
-    A number of Java classes have been written to provide the `primitives' used by generated bytecode: including the implementation of Haskell's primitive datatypes like \haskell{Int} and \haskell{Char}. The compiler is aware of these `builtin' classes and uses a set of `hooks' when generating code to provide Java implementations of Haskell functions. This is covered in more detail in Section \ref{sec:hooks}.
+    A number of Java classes have been written to provide the `primitives' used by generated bytecode: including the implementation of Haskell's primitive datatypes like \haskell{Int} and \haskell{Char}. \compilername is aware of these `builtin' classes and uses a set of `hooks' when generating code to provide Java implementations of Haskell functions. This is covered in more detail in Section \ref{sec:hooks}.
 
     \subsection{Heap Objects}\label{sec:heap-objects}
     {
@@ -631,7 +631,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
         }
         \subsubsection{Datatypes}
         {
-            An Haskell ADT can be represented simply by a class generated by the compiler which inherits from the \java{BoxedData} builtin abstract class:
+            An Haskell ADT can be represented simply by a generated class which inherits from the \java{BoxedData} builtin abstract class:
 
             \begin{javafigure}
             public abstract class BoxedData extends Data {
@@ -640,7 +640,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
             }
             \end{javafigure}
 
-            The \java{branch} field is used to identify which constructor of the type has been used, and the \java{data} field contains the arguments given to the data constructor. An example generated class\footnote{The compiler does not generate a class described in Java source form, it just generates the bytecode for the class directly.} for the datatype \haskell{data Maybe a = Nothing | Just a} might be:
+            The \java{branch} field is used to identify which constructor of the type has been used, and the \java{data} field contains the arguments given to the data constructor. An example generated class\footnote{\compilername does not generate a class described in Java source form, it just generates the bytecode for the class directly.} for the datatype \haskell{data Maybe a = Nothing | Just a} might be:
 
             \begin{javafigure}
             public class _Maybe extends BoxedData {
@@ -774,7 +774,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
         primNumIntAdd :: Int -> Int -> Int
         \end{haskellfigure}
 
-        A hook is then added to the compiler that generates functions named \monospace{_makeprimNumIntAdd} and \monospace{_primNumIntAddImpl}, as described in Section \ref{sec:closures}. The implementation of \monospace{_primNumIntAddImpl} is provided in the hook definition, and simply forwards its arguments to the \java{_Int::add} function shown in Section \ref{sec:literals}. The functions generated by the hook are, at the bytecode level, indistinguishable from functions generated by any other expression so can be called by any other function without issue.
+        A hook is then added to the code generation stage that generates functions named \monospace{_makeprimNumIntAdd} and \monospace{_primNumIntAddImpl}, as described in Section \ref{sec:closures}. The implementation of \monospace{_primNumIntAddImpl} is provided in the hook definition, and simply forwards its arguments to the \java{_Int::add} function shown in Section \ref{sec:literals}. The functions generated by the hook are, at the bytecode level, indistinguishable from functions generated by any other expression so can be called by any other function without issue.
 
         Note that hooks are baked into the code generation stage, so this feature does not behave like a Foreign Function Interface -- however, it would not be hard to extend this system to allow for programmer-defined hooks.
     }
@@ -847,7 +847,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
     {
         The unreachable code elimination pass removes all code that cannot be reached on some execution path from the entrypoint of the program. Reachable code is determined syntactically, as semantic reachability is intractable in general.
 
-        This optimisation pass is extremely effective as it can eliminate any unused functions from the `standard library' included with the compiler, described in Section \ref{sec:prelude}, ensuring that only code necessary for the execution of the program is compiled.
+        This optimisation pass is extremely effective as it can eliminate any unused functions from the `standard library' included with \compilername, described in Section \ref{sec:prelude}, ensuring that only code necessary for the execution of the program is compiled.
 
         This optimisation is performed on ILB after binding deduplication as this leads to more opportunities for removing unreachable code: eliminating bindings during the deduplication optimisation pass can only reduce the number of references to each variable in the program.
 
@@ -856,9 +856,9 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
 }
 \section{Prelude}\label{sec:prelude}
 {
-    The Haskell Standard Library is named the Prelude, and consists of a number of builtin modules that provide definitions of useful functions, datatypes, and typeclasses such as \haskell{map}, \haskell{Maybe}, and \haskell{Monad}. My compiler includes a standard library, which includes a subset of the definitions from the true Prelude.
+    The Haskell Standard Library is named the Prelude, and consists of a number of builtin modules that provide definitions of useful functions, datatypes, and typeclasses such as \haskell{map}, \haskell{Maybe}, and \haskell{Monad}. \compilername includes a standard library, which includes a subset of the definitions from the true Prelude.
     
-    My compiler does not support Haskell modules, instead using a single file per program, so the `import' approach taken is to simply concatenate the standard library (\monospace{StdLib.hs}) with the input file. Dependency analysis ensures that the definitions are compiled in a valid order, and unreachable code elimination (Section \ref{sec:unreachable-elim}) removes unnecessary definitions to prevent program bloat.
+    \compilername does not support Haskell modules, instead using a single file per program, so the `import' approach taken is to simply concatenate the standard library (\monospace{StdLib.hs}) with the input file. Dependency analysis ensures that the definitions are compiled in a valid order, and unreachable code elimination (Section \ref{sec:unreachable-elim}) removes unnecessary definitions to prevent program bloat.
 }
 \section{Summary}
 {
@@ -924,7 +924,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
     }
     \subsection{Benchmarks}
     {
-        The code for evaluating the performance of the compiler is in the \monospace{benchmarks} directory, and consists primarily of Python 3 scripts for representing, compiling, and executing a variety of benchmark programs using a number of compilers, along with a script for plotting the data.
+        The code for evaluating performance is in the \monospace{benchmarks} directory, and consists primarily of Python 3 scripts for representing, compiling, and executing a variety of benchmark programs using a number of compilers, along with a script for plotting the data.
 
         There are 821 lines of Python source code for the benchmarking framework.
     }

@@ -138,7 +138,7 @@ This chapter covers various aspects of the preparation for the project, includin
 }
 \section{Compiler Structure: Big Picture}\label{sec:compiler-structure}
 {
-    The general structure of the compiler is standard: the specific components within each stage are discussed within the implementation section, but a general overview is useful for context.
+    The general structure of \compilername is standard: the specific components within each stage are discussed within the implementation section, but a general overview is useful for context.
 
     \begin{description}
     \item[Frontend]
@@ -186,17 +186,17 @@ This chapter covers various aspects of the preparation for the project, includin
 }
 \section{Testability}
 {
-    Given the number of stages in the compiler and the scale of the project, tests are important to ensure that each component has the intended behaviour.
+    Given the number of stages and the scale of the project, tests are important to ensure that each component has the intended behaviour.
     
-    Haskell is a good language for writing testable code in: pure functions are usually easier to unit-test than impure functions as their behaviour is only affected by the parameters, independent of any global mutable state. The pipeline of the compiler is entirely pure, with impure code only for reading the source file and writing the compiled files. This made testing each stage reliable and strictly independent of the adjacent pipeline sections.
+    Haskell is a good language for writing testable code in: pure functions are usually easier to unit-test than impure functions as their behaviour is only affected by the parameters, independent of any global mutable state. The pipeline of \compilername is entirely pure, with impure code only for reading the source file and writing the compiled files. This made testing each stage reliable and strictly independent of the adjacent pipeline sections.
 
     Regression tests were implemented for all major bugs discovered, and ensure that the compiler stages do not reintroduce incorrect behaviour. 
 
-    Finally, end-to-end tests ensure that the compiler successfully processes a given Haskell source file and that the executable produced computes the correct result, treating the compiler as a black box. This extremely coarse testing method was very effective for discovering the existence of bugs, which could then be tracked down using standard debugging techniques and isolated using the finer-grained unit and regression tests. 
+    Finally, end-to-end tests ensure that \compilername successfully processes a given Haskell source file and that the executable produced computes the correct result, treating the compiler as a black box. This extremely coarse testing method was very effective for discovering the existence of bugs, which could then be tracked down using standard debugging techniques and isolated using the finer-grained unit and regression tests. 
 }
 \section{Tools}
 {
-    I chose to write this compiler in Haskell as it has a number of desirable features for large projects: purity ensures that components of the project cannot interact in unexpected ways, and the static type system guarantees that modifications are checked for a shallow (type-level) degree of correctness across the entire system.
+    I chose to write \compilername in Haskell as it has a number of desirable features for large projects: purity ensures that components of the project cannot interact in unexpected ways, and the static type system guarantees that modifications are checked for a shallow (type-level) degree of correctness across the entire system.
 
     The natural choice of compiler for Haskell is the industry-leading Glasgow Haskell Compiler (GHC), and the Stack build system is also relatively uncontested for Haskell build tooling, ensuring reproducible builds through a strict dependency versioning system.
 
@@ -210,13 +210,13 @@ This chapter covers various aspects of the preparation for the project, includin
 }
 \section{Software Development Model}\label{sec:software-development-model}
 {
-    I mainly used the waterfall development model, building each stage of the compiler sequentially and testing it both in isolation and in sequence with the previous stages. The only stage which broke this model was type inference, which required multiple refining iterations to properly implement.
+    I mainly used the waterfall development model, building each stage in the pipeline sequentially and testing it both in isolation and in sequence with the previous stages. The only stage which broke this model was type inference, which required multiple refining iterations to properly implement.
 
     This approach was effective for most stages as there was a well-defined set of unchanging requirements. When the approach failed to work it was due to an incomplete set of requirements, so an iterative approach was more suitable to introduce support for the new requirements.
 }
 \section{Starting Point}\label{sec:starting-point}
 {
-    The compiler uses a number of open-source packages from the de-facto Haskell standard library, such as \monospace{containers}, \monospace{text}, \monospace{mtl}, \dots. The full list is available in the \monospace{packages.yaml} configuration file in the root of the code repository.
+    \compilername uses a number of open-source packages from the de-facto Haskell standard library, such as \monospace{containers}, \monospace{text}, \monospace{mtl}, \dots. The full list is available in the \monospace{packages.yaml} configuration file in the root of the code repository.
 
     The \monospace{haskell-src} lexing/parsing library for Haskell 98 source code was used, although forked and modified minorly (\gitstats{187}{68}). The bytecode assembly library \monospace{hs-java} was forked and significantly modified and extended to meet the requirements of this project (\gitstats{1,772}{1,431}).
 

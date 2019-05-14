@@ -10,13 +10,13 @@ I have learned a great deal about the design of compilers from this project, as 
 {
     The only part of the project that I would redo, given the benefit of hindsight, is the typechecker.
 
-    The typechecker is the most complex part of the compiler: while some amount of complexity is unavoidable due to Haskell's relatively exotic type system, I feel that the `complexity overhead' added by the implementation onto the complexity of the underlying concepts is higher here than in any other component.
+    The typechecker is the most complex stage: while some amount of complexity is unavoidable due to Haskell's relatively exotic type system, I feel that the `complexity overhead' added by the implementation onto the complexity of the underlying concepts is higher here than in any other component.
 
     If I could re-implement this component from scratch, I would focus less on type-checking performance (which was a design goal in the current implementation) and more on clarity and extensibility. This might involve implementing distinct passes for generating type/typeclass constraints and then solving them, rather than doing both in a single pass as in the current implementation. This would likely trade performance for clarity. 
 }
 \section{Further Work}
 {
-    The implementation of closures used by this compiler was an experiment: it differs from the approach taken by other Haskell to JVB compilers such as Frege and Eta. However, evaluation showed that this design is not very performant, so it would benefit the compiler to switch to the more efficient approach; although that is quite a large chunk of work.
+    The implementation of closures was an experiment: it differs from the approach taken by other Haskell to JVB compilers such as Frege and Eta. However, evaluation showed that this design is not very performant, so it would benefit \compilername to switch to the more efficient approach; although that is quite a large chunk of work.
 
     Smaller, more achievable chunks of work include adding support for more language features. There are plenty of these in a large language like Haskell, ranging from syntactic sugar like list comprehensions to more complex features like typeclass/instance contexts.
 
@@ -24,7 +24,7 @@ I have learned a great deal about the design of compilers from this project, as 
 
     Another exciting extension would be replacing the typechecking component with the OutsideIn(X) framework described in Vytiniotis et al.\ \cite{OutsideIn}, which would open up opportunities for supporting modern extensions to Haskell's type system such as GADTs and multi-parameter typeclasses. 
 
-    Finally, it would not be too hard to extend the existing `Hooks' implementation to provide the programmer with a foreign function interface (mentioned in Section \ref{sec:hooks}), which would add significant expressive power to the compiler.
+    Finally, it would not be too hard to extend the existing `Hooks' implementation to provide the programmer with a foreign function interface (mentioned in Section \ref{sec:hooks}), which would add significant expressive power.
 }
 
 \end{document}

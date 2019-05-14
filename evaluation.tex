@@ -18,7 +18,7 @@
 }
 \section{Language Features}
 {
-    The planned subset of Haskell encompassed functions, arithmetic, booleans, lists, simple typeclasses, and laziness. The following program is compilable using my compiler (it is even included as a test), and demonstrates various use-cases of all of these features:
+    The planned subset of Haskell encompassed functions, arithmetic, booleans, lists, simple typeclasses, and laziness. The following program is compilable using \compilername (it is even included as a test), and demonstrates various use-cases of all of these features:
 
     \begin{haskellfigure}
     -- foldl :: (b -> a -> b) -> b -> [a] -> b
@@ -40,7 +40,7 @@
     valid = sum (take 10 ones :: [Int]) == 10
     \end{haskellfigure}
 
-    Successfully implemented extensions include support for user-defined datatypes, user-defined typeclasses and instances, monads, and some syntactic features like operator sections and support for point-free notation: these can be demonstrated by the following program, which exemplifies the monad definition and use-case:
+    Successfully implemented extensions include support for user-defined datatypes, user-defined typeclasses and instances, monads, and some syntactic features like operator sections and support for point-free notation: these can be demonstrated by the following program, which exemplifies the monad definition and use-cases:
 
     \begin{haskellfigure}
     data Maybe a = Nothing | Just a
@@ -76,22 +76,22 @@
     
     \subsection{Correctness}
     {
-        Correctness of the various stages of the compiler has been empirically tested using a large set of unit, integration, and regression tests: these include tests of complete programs, such as those used for benchmarking.
+        Correctness of the various compiler stages has been empirically tested using a large set of unit, integration, and regression tests: these include tests of complete programs, such as those used for benchmarking.
         
-        At the time of writing, there are 245 tests. These are run both on my development machine (described in Section \ref{sec:test-environment}), and on machines provided by Travis CI\footnote{\url{https://travis-ci.org/hnefatl/dissertation-project}} whenever a commit is pushed to my development GitHub repository. This ensures the compiler works in a clean, reproducible environment and not just on my development system.
+        At the time of writing, there are 245 tests. These are run both on my development machine (described in Section \ref{sec:test-environment}), and on machines provided by Travis CI\footnote{\url{https://travis-ci.org/hnefatl/dissertation-project}} whenever a commit is pushed to my development GitHub repository. This ensures \compilername works in a clean, reproducible environment and not just on my development system.
 
         Bugs found and fixed during development have at least one associated regression test to ensure that they cannot reappear.
 
-        As the compiler is developed using Haskell, some forms of compiler bugs that could affect the correctness of translation have been mitigated: type errors and bugs due to mutable state cannot exist within the compiler.
+        As \compilername is developed using Haskell, some forms of compiler bugs that could affect the correctness of translation have been mitigated: in particular, type errors and bugs due to mutable state cannot occur.
     }
 }
 \section{Performance}
 {
-    Although performance was not an important aspect of the success criteria, it is still interesting to evaluate the effectiveness of optimisations on the output program, and the performance of the compiler and its output compared to other Haskell to JVB compilers.
+    Although performance was not an important aspect of the success criteria, it is still interesting to evaluate the effectiveness of optimisations on the output program, and the performance of \compilername and its output compared to other Haskell to JVB compilers.
 
-    The two compilers used for comparisons are Eta and Frege. Eta is a fork of GHC that replaces the backend with one targeting JVB: it can take advantage of the powerful optimisations already available in the front- and middle-end of GHC, which is the world-leading Haskell compiler, so I expected it to perform better than both my compiler and Frege. Frege is a from-scratch compiler that compiles to Java instead of JVB, then uses a Java compiler to produce JVB. I expect Frege to perform better than my compiler, given the maturity of the project (under development since at least 2011).
+    The two compilers used for comparisons are Eta and Frege. Eta is a fork of GHC that replaces the backend with one targeting JVB: it can take advantage of the powerful optimisations already available in the front- and middle-end of GHC, which is the world-leading Haskell compiler, so I expected it to perform better than both \compilername and Frege. Frege is a from-scratch compiler that compiles to Java instead of JVB, then uses a Java compiler to produce JVB. I expect Frege to perform better than \compilername, given the maturity of the project (under development since at least 2011).
 
-    Both Eta and Frege enable optimisations by default, so all metrics given for them have optimisations enabled. Metrics given for my compiler are labelled to indicate whether or not optimisations have been applied.
+    Both Eta and Frege enable optimisations by default, so all metrics given for them have optimisations enabled. Metrics given for \compilername are labelled to indicate whether or not optimisations have been applied.
 
     \subsection{Test Environment}\label{sec:test-environment}
     {
@@ -99,7 +99,7 @@
     }
     \subsection{Execution Speed}
     {
-        Figure \ref{fig:perf} demonstrates the runtime performance of the benchmark programs after compilation by the different compilers. It is evident that the performance of programs compiled by my compiler is significantly lower than those from Frege or Eta, but also that applying optimisations can produce a reasonable speedup.
+        Figure \ref{fig:perf} demonstrates the runtime performance of the benchmark programs after compilation by the different compilers. It is evident that the performance of programs compiled by \compilername is significantly lower than those from Frege or Eta, but also that applying optimisations can produce a reasonable speedup.
 
         Interestingly Frege produced more performant programs than Eta, which was not expected, given that Eta leverages the work done on the GHC compiler.
 
@@ -123,15 +123,15 @@
             \label{fig:inner-time}
         \end{figure}
 
-        As described in the implementation chapter, my compiler uses objects of a single class to represent closures, with objects of the class storing \java{Function} objects generated using the \monospace{invokedynamic} instruction and Java 8's support for anonymous functions. This is different from the approaches taken by both Eta and Frege, where closures are translated into anonymous classes that implement a Functional Interface\footnote{\url{https://docs.oracle.com/javase/8/docs/api/java/util/function/package-summary.html}} allowing objects of the classes to be invoked like anonymous methods.
+        As described in the implementation chapter, \compilername uses objects of a single class to represent closures, with objects of the class storing \java{Function} objects generated using the \monospace{invokedynamic} instruction and Java 8's support for anonymous functions. This is different from the approaches taken by both Eta and Frege, where closures are translated into anonymous classes that implement a Functional Interface\footnote{\url{https://docs.oracle.com/javase/8/docs/api/java/util/function/package-summary.html}} allowing objects of the classes to be invoked like anonymous methods.
 
-        This design choice was deliberate: before implementing my compiler, it seemed like using a single class for all functions would be more efficient than using a new class for each function, as the equivalent Java code is significantly shorter. After performing the implementation and comparing the two different approaches, using functional interfaces with a new class for each function results in simpler code for the creation and evaluation of closures, while also eliminating significant amounts of overhead involved with creating the function objects used by \compilername, which I expect plays a large role in the performance difference.
+        This design choice was deliberate: before implementing \compilername, it seemed like using a single class for all functions would be more efficient than using a new class for each function, as the equivalent Java code is significantly shorter. After performing the implementation and comparing the two different approaches, using functional interfaces with a new class for each function results in simpler code for the creation and evaluation of closures, while also eliminating significant amounts of overhead involved with creating the function objects used by \compilername, which I expect plays a large role in the performance difference.
     }
     \subsection{Compiler Performance}
     {
-        Figure \ref{fig:compiler-perf} presents the minimum time taken to compile each benchmark program: my compiler is faster than both Eta and Frege to compile all benchmarks except for \monospace{mergesort}. 
+        Figure \ref{fig:compiler-perf} presents the minimum time taken to compile each benchmark program: \compilername is faster than both Eta and Frege to compile all benchmarks except for \monospace{mergesort}. 
 
-        Figure \ref{fig:compiler-perf-ackermann} shows the same metrics for just the \monospace{ackermann} benchmark on my compiler, so the times for each stage can be seen more clearly. It is clear that code generation is the most expensive stage in the main pipeline: profiling reveals that this is mostly due to the inefficient implementation of parts of the \monospace{hs-java} library. Efforts were made to improve the performance, in one case halving the time spent in code generation\footnote{\url{https://github.com/hnefatl/hs-java/commit/5cbd5c3995161199442310ac30c101b0497a7f98}} for the \monospace{mergesort} benchmark, but as this was an unexpected work package I ran out of time before being able to improve the performance to a satisfactory level.
+        Figure \ref{fig:compiler-perf-ackermann} shows the same metrics for just the \monospace{ackermann} benchmark on \compilername, so the times for each stage can be seen more clearly. It is clear that code generation is the most expensive stage in the main pipeline: profiling reveals that this is mostly due to the inefficient implementation of parts of the \monospace{hs-java} library. Efforts were made to improve the performance, in one case halving the time spent in code generation\footnote{\url{https://github.com/hnefatl/hs-java/commit/5cbd5c3995161199442310ac30c101b0497a7f98}} for the \monospace{mergesort} benchmark, but as this was an unexpected work package I ran out of time before being able to improve the performance to a satisfactory level.
         
         The poor performance when compiling the \monospace{mergesort} benchmark appears to be due to the large number of bindings involved: processing the list of 1000 input numbers pushes the inefficient stages to their limit. 
 
@@ -139,18 +139,18 @@
             \centering
             \captionsetup{width=0.8\textwidth}
             \includegraphics[width=0.9\textwidth]{graphs/compiler_perf.pdf}
-            \caption{Minimum time taken to compile the benchmark program. The coloured sections indicate the amount of time spent in each stage of the compiler.}
+            \caption{Minimum time taken to compile the benchmark program. The coloured sections indicate the amount of time spent in each stage.}
             \label{fig:compiler-perf}
         \end{figure}
         \begin{figure}[h]
             \centering
             \captionsetup{width=0.8\textwidth}
             \includegraphics[width=0.9\textwidth]{graphs/compiler_perf_mine_ackermann.pdf}
-            \caption{Runtime of each stage in the compiler for the \monospace{ackermann} benchmark.}
+            \caption{Runtime of each stage for the \monospace{ackermann} benchmark.}
             \label{fig:compiler-perf-ackermann}
         \end{figure}
 
-        It is interesting that the compiler usually takes less time to process the input when performing optimisations than when not. This appears to be due to a significant amount of the compilation time being spent in the code generation stage, and compressing and writing the compiled classes into a jar file: the unreachable code elimination optimisation described in Section \ref{sec:unreachable-elim} can significantly reduce the amount of code that reaches code generation, which in turn reduces the amount of bytecode that needs to be compressed and written to disk.
+        It is interesting that \compilername usually takes less time to process the input when performing optimisations than when not. This appears to be due to a significant amount of the compilation time being spent in the code generation stage, and compressing and writing the compiled classes into a jar file: the unreachable code elimination optimisation described in Section \ref{sec:unreachable-elim} can significantly reduce the amount of code that reaches code generation, which in turn reduces the amount of bytecode that needs to be compressed and written to disk.
     }
     \subsection{Executable Size}
     {

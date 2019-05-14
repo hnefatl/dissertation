@@ -538,14 +538,14 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
         {
             In Haskell a pattern will eventually match against either a data constructor, a literal value, or `anything' (with the wildcard pattern \haskell{_}). However, in the grammar for ILA's \haskell{AltConstructor}, we're missing a constructor for literals. This is due to restrictions during code generation: we can only perform \haskell{case} expressions on ADTs.
 
-            Pattern matches using literals are desugared into equality checks: the expression \haskell{case x of { 0 -> y ; 1 -> z ; _ -> w }} is essentially translated into the Haskell expression \haskell{if x == 0 then y else if x == 1 then z else w}.
+            Pattern matches using literals are instead desugared into equality checks: the Haskell expression \haskell{case x of { 0 -> y ; 1 -> z ; _ -> w }} is effectively translated into \haskell{if x == 0 then y else if x == 1 then z else w}.
         }
     }
     \subsection{Intermediate Language A - Administrative Normal Form}
     {
         ILA-ANF is a subset of ILA which uses a more restricted grammar to enforce more invariants on the language and guide the AST into Administrative Normal Form (as described in Section \ref{sec:anf}). The full definition of ILA-ANF is given below, and reuses the definitions of \haskell{Binding} and \haskell{Alt} from ILA. 
 
-        In the case of ILA-ANF, `trivial' terms are taken to be variables, data constructors, and literals. Note that this excludes lambda terms, which is somewhat unusual. Instead, lambda terms must immediately be bound to a variable: this restriction is enforced by the \haskell{AnfRhs} term in the grammar below. This design choice simplifies code generation.
+        In the case of ILA-ANF, `trivial' terms are taken to be variables, data constructors, and literals. Note that this excludes lambda terms, as they are decidedly not trivial from the perspective of code generation. Instead, lambda terms must immediately be bound to a variable: this restriction is enforced by the \haskell{AnfRhs} term in the grammar below.
 
         \begin{haskellfigure}
         data AnfTrivial = Var VariableName Type
@@ -565,13 +565,12 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
         \end{haskellfigure}
 
         An ILA program is lowered from a list of \haskell{Binding Expr} to a list of \haskell{Binding AnfRhs} by this pass. The translation is quite simple compared to the other lowering passes -- most of the terms are similar to those in ILA (including carrying type information), with notable exceptions being the introduction of \haskell{AnfApplication}, which restricts application arguments to purely trivial terms, and \haskell{AnfRhs}, to enforce that lambda terms can only be bound to variables.
-
     }
     \subsection{Intermediate Language B}
     {
-        ILB is the final intermediate language of this compiler and is inspired by GHC's STG (Spineless Tagless G-Machine) IL. ILB maintains the ANF style from ILA-ANF. It has a number of extremely useful features for code generation: the only term that performs any evaluation of an expression is the \haskell{ExpCase #\(e\ t\ vs\ as\)#} term (which evaluates \(e\) then branches to one of the \(as\)), and the only term which performs any memory allocation is the \haskell{ExpLit #\(v\ r\ e\)#} term, which allocates memory on the heap to represent a datatype/literal/uneveluated expression then evaluates \(e\).
+        ILB is the final intermediate language of this compiler and is inspired by GHC's STG (Spineless Tagless G-Machine) IL. ILB maintains the ANF style from ILA-ANF. It has a number of extremely useful features for code generation: the only term that performs any evaluation of an expression is the \haskell{ExpCase #\(e\ t\ as\)#} term (which evaluates \(e\) then branches to one of the \(as\)), and the only term which performs any memory allocation is the \haskell{ExpLet #\(v\ r\ e\)#} term, which allocates memory on the heap to represent \(r\) then evaluates \(e\).
 
-        Additionally, this language makes lazy evaluation `explicit', in the sense that expressions to be evaluated are always encapsulated within an \haskell{RhsClosure} (thanks to ANF style which names each subexpression) that can be implemented as a not-yet-evaluated thunk.
+        Additionally, this language makes lazy evaluation `explicit', in the sense that expressions are always suspended within an \haskell{RhsClosure}.
 
         \begin{haskellfigure}
         data Arg = ArgLit Literal
@@ -596,13 +595,13 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
         }
         \item
         {
-            Right-hand side terms in ILA (\haskell{AnfRhs}) were either lambda expressions or a let-binding/case expression/\dots -- in ILB, the only right-hand side term is a \haskell{RhsClosure}. A closure with no arguments is essentially a thunk, a term that exists purely to delay computation of an expression, while a closure with arguments is the familiar lambda term.
+            Right-hand side terms in ILA-ANF (\haskell{AnfRhs}) were either lambda expressions, or any other ILA-ANF expression -- in ILB, the only right-hand side term is a \haskell{RhsClosure}. A closure with no arguments is a term that exists purely to delay computation of an expression.
 
-            ILB's \haskell{RhsClosure} takes a list of arguments, whereas ILA-ANF's lambda terms only take a single argument (multiple-argument functions are just nested single-argument lambdas). This is another translation aimed at making code generation easier. Single-argument lambdas allow for simpler logic when handling partial application in higher-level languages, but is inefficient in implementation. ILB is the ideal IL to perform this switch from the high-level convenient-to-modify grammar to a lower-level efficient representation.
+            ILB's \haskell{RhsClosure} takes a list of arguments, whereas ILA-ANF's lambda terms only take a single argument (with multiple-argument functions represented as nested single-argument lambdas). Single-argument lambdas allow for simpler logic when handling partial application in higher-level languages, but is inefficient in implementation. Performing this transformation here makes code generation simpler.
         }
         \item
         {
-            ILB only allows variables in many of the places where ILA-ANF allowed variables, literals, or 0-arity data constructors (like \haskell{True}). This is another step towards making laziness explicit, by keeping expressions simple so that only one step of the evaluation needs to happen at a time.
+            ILB only allows variables in many of the places where ILA-ANF allowed literals, variables, or 0-arity data constructors (like \haskell{True}). This is another step towards making laziness explicit, by keeping expressions simple so that only one step of the evaluation needs to happen at a time.
         }
         \end{itemize}
     }

@@ -420,7 +420,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
 
     \subsection{Intermediate Language A}
     {
-        ILA is a subset of GHC's Core intermediate language, removing terms which are used for advanced language features like GADTs, as they are not supported by this compiler. Haskell 98 has hundreds of node types in its AST\footnote{\url{https://hackage.haskell.org/package/haskell-src/docs/Language-Haskell-Syntax.html}}, whereas ILA has far fewer: this makes it far easier to transform.
+        ILA is a subset of GHC's Core IL, removing terms which are used for advanced language features like GADTs. This language is still high level: but while Haskell 98 has hundreds of node types in its AST\footnote{\url{https://hackage.haskell.org/package/haskell-src/docs/Language-Haskell-Syntax.html}}, ILA has far fewer, making it far easier to transform.
 
         \subsubsection{Definition}
         {
@@ -445,13 +445,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
                            | Rec (Map VariableName a)
             \end{haskellfigure}
 
-            A Haskell program is lowered by this pass into a list of \haskell{Binding Expr}: recursive or non-recursive bindings of expressions to variables.
-
-            One notable feature of ILA is that it carries type information: leaf nodes such as \monospace{Var} are tagged with a type. This is inspired by GHC's Core IL, which is fully explicitly typed under a variant of System F, allowing for `core linting' passes in-between transformations to ensure they maintain type-correctness.
-
-            ILA is still quite high-level, so many of the language constructs have similar semantics to their Haskell counterparts. The main benefit in this lowering pass is to collapse redundant Haskell syntax (syntactic sugar) into a smaller grammar.
-
-            Most of these constructors have familiar usages, but some are more subtle:
+            This pass lowers a Haskell program into a list of \haskell{Binding Expr}: recursive or non-recursive bindings of expressions to variables. Most of these constructors have familiar usages, but some are more subtle:
 
             \begin{itemize}
             \item \monospace{Con} represents a data constructor such as \haskell{True} or \haskell{Just}.
@@ -464,28 +458,40 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
                 \monospace{Case #\(e\ as\)#} represents a multi-way switch on the value of an expression \(e\) (the `head' or `scrutinee'), matching against a number of possible matches (`alts') from the list \(as\). The body \(b\) of the first alt \monospace{Alt #\(c\ b\)#} whose constructor \(c\) matches the value of the scrutinee is executed.
             }
             \end{itemize}
+
+            One notable feature of ILA is that it carries type information, which is necessary for code generation but also allows for sanity checks: this is inspired by GHC's Core IL, which is fully explicitly typed under a variant of System F, allowing for `core linting' passes in-between transformations to ensure they maintain type-correctness.
         }
         \subsubsection{Pattern Matching}
         {
-            Many syntax features in Haskell are just syntactic sugar, and are simple to desugar (list literals like \haskell{[1, 2]} are desugared to \haskell{1:(2:[])}). Others are slightly more verbose, such as converting \haskell{if x then y else z} expressions into \haskell{case x of { True -> y ; False -> z }}.
+            Many syntax features in Haskell are syntactic sugar, and are simple to desugar (eg.\ \haskell{[1, 2]} into \haskell{1:(2:[])}, or \haskell{if x then y else z} into \haskell{case x of { True -> y ; False -> z }}).
 
-            Other language features are non-trivial to lower, such as the rich syntax Haskell uses for pattern matching. An example pattern match could be \haskell{Just x@(y:z) = Just [1, 2]}, binding \haskell{x = [1, 2]}, \haskell{y = 1}, and \haskell{z = [2]}. Multiple pattern matches can also be matched in parallel, as in function definitions:
+            Other language features are non-trivial to lower, such as the rich syntax Haskell uses for pattern matching. Figure \ref{fig:patterns} demonstrates two uses of patterns.
 
+            \begin{figure}[h]
+            \centering
+            \begin{subfigure}[t]{0.4\textwidth}
+            \begin{haskellfigure}
+            Just x@(y:z) = Just [1, 2]
+            \end{haskellfigure}
+            \caption{This single-line pattern match binds \haskell{x = [1, 2]}, \haskell{y = 1}, \haskell{z = [2]}}
+            \label{fig:pattern-horizontal}
+            \end{subfigure}
+            \hspace{5mm}
+            \begin{subfigure}[t]{0.4\textwidth}
             \begin{haskellfigure}
             f (x, Just y) = x + y
             f (x, Nothing) = x
             \end{haskellfigure}
+            \caption{A multiline pattern match}
+            \label{fig:pattern-vertical}
+            \end{subfigure}
+            \caption{}
+            \label{fig:patterns}
+            \end{figure}
 
-            Additionally, pattern matches can occur in a number of places: pattern-binding declarations such as \haskell{let (x, y) = z in ...}, functions definitions like the example above, lambda expressions, and \haskell{case} expressions (\haskell{case Just 1 of { Nothing -> ... ; Just x -> ... }}). The heterogeneity of use sites demands a flexible approach to translating pattern matches that can be reused for each instance.
+            My initial implementation worked correctly for `horizontal' patterns such as in Figure \ref{fig:pattern-horizontal}, but did not support patterns stacked `vertically' as in Figure \ref{fig:pattern-vertical}.
 
-            My initial implementation worked correctly for `horizontal' patterns where there are a number of sequential patterns on independent variables, such as in \haskell{f (x, y) (Just z) = z}, but did not support multiple disjoint patterns `vertically', such as:
-
-            \begin{haskellfigure}
-            f Nothing = 0
-            f (Just x) = x
-            \end{haskellfigure}
-
-            The implementation is somewhat fiddly, so a simplified declarative version is presented below as a function translating terms from the Haskell grammar (either patterns or variables) to terms of ILA. It demonstrates the translation of a few of the more interesting Haskell patterns. Syntactic terms of ILA are presented in monospaced font and meta-variables used to represent Haskell terms are given in script font:
+            A simplified declarative version of the implementation is presented below as a function translating terms from the Haskell grammar (either patterns or variables) to terms of ILA. It demonstrates the translation of a few of the more interesting Haskell patterns. Syntactic terms of ILA are presented in monospaced font and meta-variables used to represent Haskell terms are given in script font:
             \begin{alignat*}{2}
             \text{translate} & (v:vs, v':ps, b) && =\; \text{translate} (vs, ps, b) [v/v'] \\
             \text{translate} & (v:vs, (con\;ps'):ps, b) && =\; \texttt{case } v \texttt{ of \{ }con\;vs'\texttt{ -> }
@@ -543,7 +549,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
     }
     \subsection{Intermediate Language B}
     {
-        ILB is the final intermediate language of this compiler and is inspired by GHC's STG (Spineless Tagless G-Machine) IL. ILB maintains the ANF style from ILA-ANF. It has a number of extremely useful features for code generation: the only term that performs any evaluation of an expression is the \haskell{ExpCase #\(e\ t\ as\)#} term (which evaluates \(e\) then branches to one of the \(as\)), and the only term which performs any memory allocation is the \haskell{ExpLet #\(v\ r\ e\)#} term, which allocates memory on the heap to represent \(r\) then evaluates \(e\).
+        ILB is the final intermediate language of this compiler and is inspired by GHC's STG (Spineless Tagless G-Machine) IL. ILB maintains the ANF style from ILA-ANF. It has a number of extremely useful properties for code generation: the only term that evaluation an expression is the \haskell{ExpCase #\(e\ t\ as\)#} term, and the only term which performs any memory allocation is the \haskell{ExpLet #\(v\ r\ e\)#} term.
 
         Additionally, this language makes lazy evaluation `explicit', in the sense that expressions are always suspended within an \haskell{RhsClosure}.
 
@@ -583,11 +589,11 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
 }
 \section{Code Generation}
 {
-    Code generation is, from the surface, quite a mechanically simple process. ILB is a small language, so there are few terms to lower into bytecode. Implementing the semantics of these terms in Java Bytecode is complex, however.
+    Code generation is, from the surface, quite a mechanically simple process. ILB is a small language, so there are few terms to lower into bytecode. However, implementing the semantics of these terms in Java Bytecode is complex.
 
     The \monospace{hs-java} library was used to provide a Haskell representation of bytecode that could then be serialised to a Java \monospace{.class} file, but a number of modifications were made to add support for Java 8 features required by the compiler and improve performance: the forked project can be found at \url{https://github.com/hnefatl/hs-java}.
 
-    A number of Java classes have been written to provide the `primitives' used by generated bytecode: including the implementation of Haskell's primitive datatypes like \haskell{Int} and \haskell{Char}, as well as the base class for all ADTs definable within the language (\monospace{BoxedData}, described later). The compiler is aware of these `builtin' classes and uses a set of `hooks' when generating code to provide Java implementations of Haskell functions. This is covered in more detail in Section \ref{sec:hooks}.
+    A number of Java classes have been written to provide the `primitives' used by generated bytecode: including the implementation of Haskell's primitive datatypes like \haskell{Int} and \haskell{Char}. The compiler is aware of these `builtin' classes and uses a set of `hooks' when generating code to provide Java implementations of Haskell functions. This is covered in more detail in Section \ref{sec:hooks}.
 
     \subsection{Heap Objects}\label{sec:heap-objects}
     {
@@ -606,11 +612,11 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
         }
         \end{javafigure}
 
-        The abstract \java{enter} method evaluates the object to WHNF (described in Section \ref{sec:whnf}) and returns a reference to the result, and the \java{clone} method simply returns a shallow copy of the object. This method is critical for implementing function applications, described later.
+        The abstract \java{enter} method evaluates the object to WHNF (described in Section \ref{sec:whnf}) and returns a reference to the result. The \java{clone} method simply returns a shallow copy of the object: this method is critical for implementing function applications, described later.
 
         \subsubsection{Literals}\label{sec:literals}
         {
-            Literals are builtin types that cannot be defined as an Haskell ADT, such as \haskell{Int}. Any such type is a subclass of the \java{Data} class, which implements the trivial reduction to WHNF (all literals are already in WHNF).
+            Literals are builtin types such as \haskell{Int} that cannot be defined as an Haskell ADT. Any such type is implemented by a subclass of the \java{Data} class, which implements the trivial reduction to WHNF (all literals are already in WHNF).
 
             \begin{javafigure}
             public abstract class Data extends HeapObject {
@@ -636,7 +642,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
             }
             \end{javafigure}
 
-            The \java{branch} field is used to identify which constructor of the type has been used, and the \java{data} field contains any arguments given to the constructor. An example generated class\footnote{The compiler does not generate a class described in Java source form, it just generates the bytecode for the class directly.} for the datatype \haskell{data Maybe a = Nothing | Just a} might be:
+            The \java{branch} field is used to identify which constructor of the type has been used, and the \java{data} field contains the arguments given to the data constructor. An example generated class\footnote{The compiler does not generate a class described in Java source form, it just generates the bytecode for the class directly.} for the datatype \haskell{data Maybe a = Nothing | Just a} might be:
 
             \begin{javafigure}
             public class _Maybe extends BoxedData {
@@ -733,20 +739,20 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
     }
     \subsection{JVM Sanitisation}\label{sec:jvm-sanitisation}
     {
+        JVM Sanitisation is a name conversion process used in the code generator to prevent conflicts and invalid variable names when everything has been lowered into JVB.
+
         Haskell\footnote{\url{https://www.haskell.org/onlinereport/lexemes.html}}, Java\footnote{\url{https://docs.oracle.com/javase/specs/jls/se8/html/jls-3.html\#jls-3.8}}, and JVB\footnote{\url{https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-4.html\#jvms-4.2.2}} all allow different sets of strings as valid identifiers: for example, \java{Temp} is a valid variable name in Java and JVB, but not in Haskell (identifiers with uppercase Unicode start characters are reserved for constructor names like \monospace{True}). \monospace{(+)} is a valid identifier in Haskell and JVB, but not in Java.
 
-        Additionally name conflicts can occur between builtin classes used by the compiler (eg.\ \java{Function} and \java{Data}) and constructor names in the Haskell source (eg.\ \haskell{data Function = Function}).
-
-        JVM Sanitisation is a name conversion process used in the code generator to prevent conflicts and invalid variable names when everything has been lowered into JVB:
+        Additionally, name conflicts can occur between builtin classes used by the compiler (eg.\ \java{Function}) and constructor names in the Haskell source (eg.\ \haskell{data Function = Function}).
 
         \begin{itemize}
         \item
         {
-            All names that have come from Haskell source are prefixed with an underscore, and any builtin classes are forbidden from starting with an underscore. This prevents name clashes.
+            All names that have come from Haskell source are prefixed with an underscore, and builtin classes are restricted from starting with an underscore.
         }
         \item
         {
-            Any non-alphanumeric (Unicode) characters in a Haskell source identifier are replaced by their Unicode codepoint in hexadecimal, flanked on either side by \$ symbols. This prevents names from using characters disallowed by JVB, and ensures unique decodability.
+            Any non-alphanumeric (Unicode) characters in a Haskell source identifier are replaced by their Unicode codepoint in hexadecimal, flanked on either side by \$ symbols. This prevents variables from using characters disallowed by JVB while ensuring unique decodability.
         }
         \end{itemize}
     }
@@ -854,7 +860,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
 {
     The Haskell Standard Library is named the Prelude, and consists of a number of builtin modules that provide definitions of useful functions, datatypes, and typeclasses such as \haskell{map}, \haskell{Maybe}, and \haskell{Monad}. My compiler includes a standard library, which includes a subset of the definitions from the true Prelude.
     
-    With GHC, these are provided as importable modules from the \monospace{base} package, which is an implicit (opt-out) dependency of all packages. My compiler does not support modules or packages, instead using a single file per program, so the approach taken is to simply concatenate the file containing the standard library (\monospace{StdLib.hs}) with the input file: dependency analysis (described in Section \ref{sec:dependency-analysis}) ensures that the definitions are compiled in a valid order, and unreachable code elimination (Section \ref{sec:unreachable-elim}) removes uncessary definitions to prevent program bloat.
+    My compiler does not support Haskell modules, instead using a single file per program, so the `import' approach taken is to simply concatenate the standard library (\monospace{StdLib.hs}) with the input file. Dependency analysis ensures that the definitions are compiled in a valid order, and unreachable code elimination (Section \ref{sec:unreachable-elim}) removes unnecessary definitions to prevent program bloat.
 }
 \section{Summary}
 {
@@ -870,16 +876,14 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
     \item
     {
         Type inference is implemented similarly to the Hindley-Milner algorithm, but typeclasses introduce a number of complications.
-        
-        Typeclasses provide a way to implement strongly-typed ad-hoc overloading, allowing for the types of overloaded expressions to be known at compile time.
     }
     \item
     {
-        After typechecking, types include typeclass `contexts', eg.\ \haskell{Eq a => a -> a -> Bool}. These are implemented using dictionary passing, which introduces an extra parameter for each class constraint providing the `implementation' of the typeclass for a type variable. This deoverloading process converts the context into formal parameters eg.\ \haskell{Eq a -> a -> a -> Bool}.
+        After typechecking, types include typeclass `contexts', eg.\ \haskell{Eq a => a -> a -> Bool}. These are implemented using dictionary passing, introducing an extra parameter for each class constraint providing the `implementation' of the typeclass for a type variable.
     }
     \item
     {
-        Intermediate Language A's (ILA) primary design goal is to collapse the hundreds of types of syntax node in the Haskell source AST into a significantly smaller core of less than 10 AST nodes. Type information is preserved for use by lower stages and for sanity checks.
+        Intermediate Language A's (ILA) primary design goal is to collapse the hundreds of types of syntax node in the Haskell source AST into a significantly smaller core of less than 10 nodes. Type information is preserved for use by lower stages and for sanity checks.
     }
     \item
     {
@@ -893,10 +897,6 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
     \item
     {
         Lazy evaluation is implemented by translating each Haskell expression into a function, in order to delay evaluation until the function is called.
-    }
-    \item
-    {
-        `Evaluating' a Haskell expression means reducing it to Weak Head Normal Form, where the expression is either a literal, fully/partially applied data constructor, or partially applied function. Arguments to functions or data constructors need not have been evaluated.
     }
     \item
     {

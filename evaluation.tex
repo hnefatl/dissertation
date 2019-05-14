@@ -18,7 +18,7 @@
 }
 \section{Language Features}
 {
-    The planned subset of Haskell encompassed functions, arithmetic, booleans, lists, simple typeclasses, and laziness. The following program is compilable using \compilername (it is even included as a test), and demonstrates various use-cases of all of these features:
+    The main goal of the project was to support a reasonable subset of Haskell. The planned subset encompassed functions, arithmetic, booleans, lists, simple typeclasses, and laziness: the following program is compilable using \compilername (it is even included as a test), and demonstrates various use-cases of all of these features:
 
     \begin{haskellfigure}
     -- foldl :: (b -> a -> b) -> b -> [a] -> b
@@ -40,7 +40,7 @@
     valid = sum (take 10 ones :: [Int]) == 10
     \end{haskellfigure}
 
-    Successfully implemented extensions include support for user-defined datatypes, user-defined typeclasses and instances, monads, and some syntactic features like operator sections and support for point-free notation: these can be demonstrated by the following program, which exemplifies the monad definition and use-cases:
+    Extensions which were successfully implemented add support for user-defined datatypes, user-defined typeclasses and instances, monads, and some syntactic features like operator sections and support for point-free notation: these can be demonstrated by the following program, which exemplifies the monad definition and use-cases:
 
     \begin{haskellfigure}
     data Maybe a = Nothing | Just a
@@ -54,8 +54,7 @@
         (Just x) >>= f = f x
         return = Just
     instance Monad [] where
-        [] >>= f = []
-        (x:xs) >>= f = (f x) ++ (f >>= xs)
+        xs >>= f = concat (map f xs)
         return x = [x]
 
     -- The monad instance for maybe can be interpreted as function application
@@ -103,25 +102,24 @@
 
         Interestingly Frege produced more performant programs than Eta, which was not expected, given that Eta leverages the work done on the GHC compiler.
 
-        \begin{figure}[h]
+        The inefficiency of programs output by \compilername seems to stem primarily from my implementation of runtime closures (described in Section \ref{sec:closures}). Figure \ref{fig:inner-time} shows that almost 40\% of a program's execution is spent in the functions associated with creating and calling closures: \monospace{enter}, \monospace{addArgument}, and \monospace{clone}. A more efficient implementation should have most of the runtime spent in one or more of the \monospace{Impl} functions (such as \monospace{_v19Impl}), which perform the actual logic of an expression of the Haskell program, rather than the bottleneck being in the runtime system.
+
+        \begin{minipage}[t]{\textwidth}
+        \begin{figure}[H]
             \centering
             \captionsetup{width=0.8\textwidth}
             \includegraphics[width=0.9\textwidth]{graphs/perf.pdf}
             \caption{Median runtime in milliseconds of the benchmark programs. Error bars show 25th and 75th percentiles.}
             \label{fig:perf}
-
-            \todo[inline]{Update to use min with error bars showing 25th+50th quartile or similar}
         \end{figure}
-
-        The inefficiency of programs output by \compilername seems to stem primarily from my implementation of runtime closures (described in Section \ref{sec:closures}). Figure \ref{fig:inner-time} shows that almost 40\% of a program's execution is spent in the functions associated with creating and calling closures: \monospace{enter}, \monospace{addArgument}, and \monospace{clone}. A more efficient implementation should have most of the runtime spent in one or more of the \monospace{Impl} functions (such as \monospace{_v19Impl}), which perform the actual logic of an expression of the Haskell program, rather than the bottleneck being in the runtime system.
-
-        \begin{figure}[h]
+        \begin{figure}[H]
             \centering
             \captionsetup{width=0.9\textwidth}
             \includegraphics[width=0.7\textwidth]{graphs/perf_profile_ackermann.pdf}
             \caption{A breakdown of the percentage of execution time spent in each Java function in the generated code (`inner time') for the \monospace{ackermann} benchmark. Functions with inner time of less than 3\% are grouped into a single wedge.}
             \label{fig:inner-time}
         \end{figure}
+        \end{minipage}
 
         As described in the implementation chapter, \compilername uses objects of a single class to represent closures, with objects of the class storing \java{Function} objects generated using the \monospace{invokedynamic} instruction and Java 8's support for anonymous functions. This is different from the approaches taken by both Eta and Frege, where closures are translated into anonymous classes that implement a Functional Interface\footnote{\url{https://docs.oracle.com/javase/8/docs/api/java/util/function/package-summary.html}} allowing objects of the classes to be invoked like anonymous methods.
 
@@ -129,28 +127,30 @@
     }
     \subsection{Compiler Performance}
     {
-        Figure \ref{fig:compiler-perf} presents the minimum time taken to compile each benchmark program: \compilername is faster than both Eta and Frege to compile all benchmarks except for \monospace{mergesort}. 
-
-        Figure \ref{fig:compiler-perf-ackermann} shows the same metrics for just the \monospace{ackermann} benchmark on \compilername, so the times for each stage can be seen more clearly. It is clear that code generation is the most expensive stage in the main pipeline: profiling reveals that this is mostly due to the inefficient implementation of parts of the \monospace{hs-java} library. Efforts were made to improve the performance, in one case halving the time spent in code generation\footnote{\url{https://github.com/hnefatl/hs-java/commit/5cbd5c3995161199442310ac30c101b0497a7f98}} for the \monospace{mergesort} benchmark, but as this was an unexpected work package I ran out of time before being able to improve the performance to a satisfactory level.
+        Figure \ref{fig:compiler-perf} presents the minimum time taken to compile each benchmark program: \compilername is significantly faster than both Eta and Frege to compile all benchmarks except for \monospace{mergesort}, which is significantly slower.
         
-        The poor performance when compiling the \monospace{mergesort} benchmark appears to be due to the large number of bindings involved: processing the list of 1000 input numbers pushes the inefficient stages to their limit. 
+        The poor performance appears to be due to the large number of bindings involved: processing the list of 1000 input numbers pushes the inefficient stages to their limits. The \monospace{hs-java} library used in code generation was known to perform poorly -- efforts were made to improve the performance, in one case \textbf{halving} the time spent in code generation\footnote{\url{https://github.com/hnefatl/hs-java/commit/5cbd5c3995161199442310ac30c101b0497a7f98}} for the \monospace{mergesort} benchmark, but as this was an unexpected work package I ran out of time before being able to improve the performance to a satisfactory level. This benchmark also revealed that the current let-lifting algorithm is possibly exponential-time. Neither component should take much work to improve up to acceptable scalability.
 
-        \begin{figure}[h]
+        Figure \ref{fig:compiler-perf-ackermann} shows the same metrics for just the \monospace{ackermann} benchmark on \compilername, so the times for each stage can be seen more clearly. It is clear that code generation is the most expensive stage in the main pipeline: profiling reveals that this is mostly due to the inefficient implementation of parts of the \monospace{hs-java} library. 
+        
+        It is interesting that \compilername usually takes less time to process the input when performing optimisations than when not. From Figure \ref{fig:compiler-perf-ackermann} we can see this is due to a significant amount of the compilation time being spent in the code generation stage, and compressing and writing the compiled classes into a jar file: the unreachable code elimination optimisation described in Section \ref{sec:unreachable-elim} can significantly reduce the amount of code that reaches code generation, which also reduces the amount of bytecode that needs to be compressed and written to disk.
+
+        \begin{minipage}[t]{0.9\textwidth}
+        \begin{figure}[H]
             \centering
             \captionsetup{width=0.8\textwidth}
             \includegraphics[width=0.9\textwidth]{graphs/compiler_perf.pdf}
             \caption{Minimum time taken to compile the benchmark program. The coloured sections indicate the amount of time spent in each stage.}
             \label{fig:compiler-perf}
         \end{figure}
-        \begin{figure}[h]
+        \begin{figure}[H]
             \centering
             \captionsetup{width=0.8\textwidth}
             \includegraphics[width=0.9\textwidth]{graphs/compiler_perf_mine_ackermann.pdf}
             \caption{Runtime of each stage for the \monospace{ackermann} benchmark.}
             \label{fig:compiler-perf-ackermann}
         \end{figure}
-
-        It is interesting that \compilername usually takes less time to process the input when performing optimisations than when not. This appears to be due to a significant amount of the compilation time being spent in the code generation stage, and compressing and writing the compiled classes into a jar file: the unreachable code elimination optimisation described in Section \ref{sec:unreachable-elim} can significantly reduce the amount of code that reaches code generation, which in turn reduces the amount of bytecode that needs to be compressed and written to disk.
+        \end{minipage}
     }
     \subsection{Executable Size}
     {
@@ -168,10 +168,11 @@
     }
     \subsection{Impact of Optimisations}
     {
-        Figure \ref{fig:opt-perf} shows that the implemented optimisations are successful in reducing the execution time of compiled programs, although none have a truly significant impact: speedups can be seen of up to 10\%, but the performance remains relatively poor compared to Frege and Eta.
+        Figure \ref{fig:opt-perf} shows that the implemented optimisations are successful in reducing the execution time of compiled programs, although none have a truly significant impact: speedups can be seen of up to 10\%, but the performance remains poor compared to Frege and Eta.
 
-        Figure \ref{fig:opt-size} demonstrates that the unreachable code elimination optimisation is effective at reducing the size of compiled programs, in some cases halving the size. The amount of removed code is relatively constant, as the majority of removable code in these benchmarks will be from the standard library, which produces a constant size overhead.
+        Figure \ref{fig:opt-size} demonstrates that the unreachable code elimination optimisation is effective at reducing the size of compiled programs, in some cases halving the size. The amount of removed code is relatively constant, as the majority of removable code in these benchmarks will be from the standard library, which produces a constant size overhead. For larger input programs, the space savings could be greater.
 
+        \begin{minipage}[t]{0.9\textwidth}
         \begin{figure}[H]
             \centering
             \captionsetup{width=0.8\textwidth}
@@ -179,7 +180,6 @@
             \caption{Minimum runtime of the benchmarks after compilation with various optimisations: L stands for let-lifting, D for binding deduplication, and U for unreachable code elimination.}
             \label{fig:opt-perf}
         \end{figure}
-
         \begin{figure}[H]
             \centering
             \captionsetup{width=0.8\textwidth}
@@ -187,6 +187,7 @@
             \caption{Executable size from \compilername with and without the unreachable-code-elimination optimisation.}
             \label{fig:opt-size}
         \end{figure}
+        \end{minipage}
     }
 }
 

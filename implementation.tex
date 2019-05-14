@@ -616,11 +616,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
 
     \subsection{Heap Objects}\label{sec:heap-objects}
     {
-        \todo[inline]{Still figuring out where/how to move the big Java code dumps to increase clarity and keep things focused while not making the explanation confusing.} 
-
         Literals, datatype values and closures are all represented at runtime by values on the heap, as they are all first-class values in Haskell, and will be referred to as `objects': this intentionally overloads the terminology used by Java for an instance of a class, as the two concepts are essentially interchangeable here as Java objects are heap-allocated.
-
-        Thunks are represented simply as closures without arguments: all of the closure logic described below is the same between thunks and functions.
 
         All objects on the heap inherit from a common abstract base class, \java{HeapObject}:
 
@@ -758,8 +754,6 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
             \end{enumerate}
 
             All of the functions defined in a Haskell program are compiled into their pairs of Java functions within a single class, the `main' class. Datatypes are compiled into their own classes which are then referenced by the main class. This approach to function compilation differs from the approaches taken by Scala and Kotlin (other languages targeting the JVM), which compile lambda expressions into anonymous classes.
-
-            In Haskell, the vast majority of expressions are function applications by the time the source has reached ILB. To provide lazy semantics, each expression has to be evaluatable without forcing other expressions, so each function implementation is quite small. This results in a lot of functions being generated. Using anonymous classes to implement Haskell functions would result in hundreds or thousands of small Java classes, whereas using Java functions results in far fewer classes and more functions inside a single class.
         }
     }
     \subsection{JVM Sanitisation}\label{sec:jvm-sanitisation}
@@ -777,7 +771,7 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
         }
         \item
         {
-            Any non-alphanumeric (Unicode) characters in a Haskell source identifier are replaced by their Unicode codepoint in hexadecimal, flanked on either side by \$ symbols. This is more restrictive than necessary, as JVB allows most unicode characters, but is a safe and simple defence against conflicts. Using \$ symbols to mark the start and end of a sanitised character ensures that identifiers are uniquely decodable and prevents two distinct identifiers from clashing when sanitised (without delimiters, the valid Haskell identifiers \haskell{#\(\pi\)#} and \haskell{CF80} are sanitised into the same identifier: \monospace{_CF80}. With the delimiters, \haskell{#\(\pi\)#} is sanitised into \monospace{_$CF80$}).
+            Any non-alphanumeric (Unicode) characters in a Haskell source identifier are replaced by their Unicode codepoint in hexadecimal, flanked on either side by \$ symbols. This prevents names from using characters disallowed by JVB, and ensures unique decodability.
         }
         \end{itemize}
     }
@@ -939,17 +933,15 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
 }
 \section{Repository Structure}
 {
-    The main code repository for this project is available at \url{https://github.com/hnefatl/dissertation-project} -- all of the code in this repository was written from scratch. The important directories in the top-level of the repository are shown diagrammatically in Appendix \ref{appendix:directory-structure} and described in a high-level manner below.
+    The main code repository for this project is available at \url{https://github.com/hnefatl/dissertation-project} -- all of the code in this repository was written from scratch. Appendix \ref{appendix:directory-structure} highlights the important files.
 
     \subsection{\monospace{compiler}}
     {
-        The vast majority of code written was in a library named \monospace{compiler}, which exposes an API for compiling Haskell programs -- the code for this library is within the \monospace{src} directory. \monospace{Compiler.hs} contains functions that string all of the pipeline stages together.
-
-        This library contains 6344 lines of Haskell source code.
+        The vast majority of code written was in a library named \monospace{compiler}, within the \monospace{src} directory, which exposes an API for compiling Haskell programs. This library contains 6344 lines of Haskell source code.
     }
     \subsection{\monospace{compiler-exe}}
     {
-        The compiler executable is imaginatively named \monospace{compiler-exe}, with the single 97-line source file \monospace{Main.hs} residing in the \monospace{app} directory: it contains the application entry point and code for handling command-line arguments, before passing control over to the \monospace{compiler} library for the actual compilation process.
+        The compiler executable is imaginatively named \monospace{compiler-exe}, compiled from a single 97-line source file \monospace{Main.hs} in the \monospace{app} directory: it contains the application entry point and code for handling command-line arguments, before passing control over to the \monospace{compiler} library for the actual compilation process.
     }
     \subsection{Tests}
     {
@@ -961,17 +953,11 @@ The compiler consists of a number of stages and substages, as shown in Figure \r
     {
         The code for evaluating the performance of the compiler is in the \monospace{benchmarks} directory, and consists primarily of Python 3 scripts for representing, compiling, and executing a variety of benchmark programs using a number of compilers, along with a script for plotting the data.
 
-        The \monospace{*benchmark.py} files define classes of benchmark and the \monospace{runbenchmarks.py} file creates objects of those classes to represent the various benchmarks and executes them.
-
-        The \monospace{programs} directory contains source files for the benchmarks, and the \monospace{results} directory contains the data obtained from the benchmarks.
-
         There are 821 lines of Python source code for the benchmarking framework.
     }
     \subsection{\monospace{hs-java}}
     {
         The \monospace{hs-java} library\footnote{\url{https://hackage.haskell.org/package/hs-java}} is a library developed by Ilya V. Portnov for generating Java Bytecode. During my project, I made a number of modifications to the library, resulting in quite significant changes from the original. My fork of the library is available at \url{https://github.com/hnefatl/hs-java}, and has Git additions/deletions of \gitstats{1,772}{1,431}: the modified version of the library contains 3569 lines of Haskell source.
-
-        \monospace{Assembler.hs} defines a representation of the JVB instruction set, \monospace{ClassFile.hs} defines a representation of Java Class files, and \monospace{Converter.hs} defines functions for converting the class file representation to and from a raw byte representation. The files within the \monospace{Builder} directory define a useful API for generating bytecode from Haskell using a monad named \haskell{GeneratorT}.
     }
 }
 

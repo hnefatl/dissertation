@@ -64,11 +64,11 @@
 
         We compute the sets of free/bound variables/type variables/type constants for each declaration, then construct a dependency graph -- each node is a declaration, with an edge from \(A\) to \(B\) if any bound variables/type variables/type constants at \(A\) are free in \(B\). It is important to distinguish between variables/type variables and type constants, as otherwise name conflicts could occur (as type constants are not renamed). This separation is upheld in code by using different types for each, and is represented in the dependency graph in Figure \ref{fig:dependency-graph} by colouring variables red and constants blue.
 
-        The strongly connected components (SCCs) of the dependency graph correspond to sets of mutually recursive declarations, and the partial order between components gives us the order to typecheck each set. I use an existing Haskell library to compute the SCCs (\texttt{containers}\footnote{\url{https://hackage.haskell.org/package/containers}}), which uses the algorithm presented by M. Sharir\cite{SCC}.
+        The strongly connected components (SCCs) of the dependency graph correspond to sets of mutually recursive declarations, and the partial order between components gives us the order to typecheck each set. I use an existing Haskell library to compute the SCCs (\texttt{containers}), which uses the algorithm presented by M. Sharir\cite{SCC}.
 
         For example, from the dependency graph in Figure \ref{fig:dependency-graph} we know that: we need to typecheck \(d_3\), \(d_4\), and \(d_5\) together as they are contained within the same strongly-connected component so are mutually recursive; we have to typecheck \(d_2\) last, after both other components. Typechecking declarations within the same component can proceed in an arbitrary order.
 
-        \begin{figure}[h]
+        \begin{figure}[H]
         \centering
         \begin{subfigure}[t]{0.4\textwidth}
             \begin{haskellfigure*}{linenos=false}
@@ -79,12 +79,12 @@
             h y = f y                     #\(d_5\)#
             \end{haskellfigure*}
         \end{subfigure}
-        \begin{subfigure}[t]{0.5\textwidth}
+        \begin{subfigure}[t]{0.45\textwidth}
             \includegraphics[width=\textwidth, valign=t]{figures/dependency_graph.pdf}
         \end{subfigure}
         \caption
         {
-            Code labelled with declaration numbers, and the corresponding dependency graph. Variables are in red text, type constants in blue. Strongly connected components are highlighted.
+            Code labelled with declaration numbers, and the corresponding dependency graph. Variables are in blue, type constants in red. Strongly connected components are grouped.
         }
         \label{fig:dependency-graph}
         \end{figure}
@@ -623,7 +623,7 @@
             }
             \end{javafigure}
 
-            An example implementation of the \haskell{Integer} literal type using this class is given in Appendix \ref{appendix:integer-literal}.
+            The implementation of the \haskell{Integer} literal type using this class is given in Appendix \ref{appendix:integer-literal}.
 
             The classes implementing each literal provide their own type-specific initialisation functions, which are invoked at runtime depending on the type of the literal being constructed.
         }
@@ -904,7 +904,7 @@
 }
 \section{Repository Structure}
 {
-    The main code repository for this project is available at \url{https://github.com/hnefatl/dissertation-project} -- all of the code in this repository was written from scratch. Appendix \ref{appendix:directory-structure} highlights the important files.
+    The main code repository for this project is available at \url{https://github.com/hnefatl/dissertation-project} -- all of the code in this repository was written from scratch.
 
     \subsection{\monospace{compiler}}
     {

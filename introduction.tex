@@ -18,7 +18,7 @@ The project was a success: my compiler (the \compilerlongname, \compilername) ca
 }
 \section{Existing Work}
 {
-    GHC is the industry-leading Haskell compiler, capable of generating high-performance code rivalling C. It takes advantage of purity to aggressively optimise code and can parallelise programs using only small hints from the programmer. GHC generates native code for a variety of architectures, and includes an LLVM backend: however, it does not target JVB.
+    GHC is the industry-leading Haskell compiler, capable of generating high-performance code rivalling C\cite{ghc-vs-c}. It takes advantage of purity to aggressively optimise code and can parallelise programs using only small hints from the programmer\cite{ghc-parallel}. GHC generates native code for a variety of architectures, and includes an LLVM backend: however, it does not target JVB.
 
     There are two actively maintained compilers from dialects of Haskell to JVB that I am aware of: Eta and Frege. Both languages are dialects of Haskell with modifications to enable interoperation with Java with less effort. The Eta compiler is a fork of GHC, replacing the code generation stage with one targeting JVB. Frege also aims to provide high-quality Java interoperability, but targets Java rather than JVB directly. It was developed from scratch and is now written in the Frege language, as the compiler can bootstrap itself. 
 }

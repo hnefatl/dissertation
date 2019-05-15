@@ -10,8 +10,8 @@
 \usepackage{prftree}
 \usepackage{verbatim}
 \usepackage{makecell}
+\usepackage{fancyhdr}
 \usepackage{titlesec}
-\usepackage{todonotes}
 \usepackage{datetime}
 \usepackage{caption}
 \usepackage{pdfpages}
@@ -98,8 +98,7 @@
 \begin{document}
 
 \bibliographystyle{plain}
-
-\pagestyle{empty}
+\thispagestyle{empty}
 
 \rightline{\LARGE \textbf{Keith Collister}}
 
@@ -112,7 +111,9 @@ Robinson College \\[5mm]
 \today
 \end{center}
 
+\clearpage
 \pagestyle{plain}
+\pagenumbering{roman}
 
 \chapter*{Declaration of Originality}
 \subfile{declarationoriginality}
@@ -122,7 +123,17 @@ Robinson College \\[5mm]
 
 \tableofcontents
 
+% Overwrite the page style used for chapter pages, to include the page number
+\fancypagestyle{plain}{%
+    \fancyhf{}%
+    \fancyhead[R]{\vspace{1.5pt}\thepage}%
+    \renewcommand{\headrulewidth}{0pt}% Line at the header invisible
+    \renewcommand{\footrulewidth}{0pt}% Line at the footer visible
+}
+
+\clearpage
 \pagestyle{headings}
+\pagenumbering{arabic}
 
 \chapter{Introduction}\label{sec:introduction}
 \subfile{introduction}

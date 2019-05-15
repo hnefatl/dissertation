@@ -52,8 +52,6 @@
 
         To eliminate the potential for subtle bugs stemming from this feature, the renamer pass gives each distinct variable/type variable in the source a unique name (in the above example, the variable \haskell{x} might be renamed to \haskell{v0} and the type variable renamed to \haskell{tv0}, provided those names have not already been used).
 
-        \todo[inline]{I removed the implementation explanation as it's pretty obvious and was an easy way to save words. Does it still read okay?}
-
         Type constants such as \haskell{Bool} from \haskell{data Bool = False | True} and typeclass names like \haskell{Num} from \haskell{class Num a where ...} are not renamed: these names are already guaranteed to be unique by the syntax of Haskell, so renaming them would introduce unnecessary complexity.
     }
     \subsection{Kind/Class Analysis}

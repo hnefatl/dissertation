@@ -97,7 +97,7 @@ This chapter covers various aspects of the preparation for the project, includin
     }
     \subsection{Typeclasses}\label{sec:typeclasses}
     {
-        Typeclasses are a language feature used to provide statically typed ad-hoc polymorphism (overloading). The general usage of typeclasses is encapsulated by the following example: 
+        Typeclasses are a language feature used to provide statically typed ad-hoc polymorphism (overloading). The general usage of typeclasses is exemplified by the following example: 
 
         \begin{haskellfigure}
         class Functor f where
@@ -188,9 +188,9 @@ This chapter covers various aspects of the preparation for the project, includin
 {
     Given the number of stages and the scale of the project, tests are important to ensure that each component has the intended behaviour.
     
-    Haskell is a good language for writing testable code in: pure functions are usually easier to unit-test than impure functions as their behaviour is only affected by the parameters, independent of any global mutable state. The pipeline of \compilername is entirely pure, with impure code only for reading the source file and writing the compiled files. This made testing each stage reliable and strictly independent of the adjacent pipeline sections.
+    Haskell is a good language for writing testable code in: pure functions are usually easier to unit-test than impure functions as their behaviour is only affected by the parameters, independent of any global mutable state. The pipeline of \compilername is entirely pure, with impure code only for reading the source file and writing the compiled files. This made testing each stage reliable and unaffected by the adjacent pipeline sections.
 
-    Regression tests were implemented for all major bugs discovered, and ensure that the compiler stages do not reintroduce incorrect behaviour. 
+    Regression tests were implemented for all major bugs discovered, to ensure that the compiler stages do not reintroduce incorrect behaviour. 
 
     Finally, end-to-end tests ensure that \compilername successfully processes a given Haskell source file and that the executable produced computes the correct result, treating the compiler as a black box. This extremely coarse testing method was very effective for discovering the existence of bugs, which could then be tracked down using standard debugging techniques and isolated using the finer-grained unit and regression tests. 
 }
@@ -200,13 +200,13 @@ This chapter covers various aspects of the preparation for the project, includin
 
     The natural choice of compiler for Haskell is the industry-leading Glasgow Haskell Compiler (GHC), and the Stack build system is also relatively uncontested for Haskell build tooling, ensuring reproducible builds through a strict dependency versioning system.
 
-    Documentation has been written using Haddock, a tool that generates documentation from the code and comments: this documentation is rebuilt on every successful build and provides an easily-navigable description of commented modules and functions.
+    Documentation has been written using Haddock, a tool that generates documentation from the code and comments: this documentation is rebuilt on every successful build and provides an easily-navigable description of the codebase.
 
-    Git was used for version control, allowing me to develop features on distinct branches, use bisection to find the commits which introduced bugs, and keep a remote repository of code on Github as a backup. 
+    Git was used for version control, allowing me to develop features on distinct branches, use bisection to find commits which introduced bugs, and keep a remote repository of code on Github as a backup. 
 
     Continuous integration was performed using Travis CI, which ensures that tests are run on every pushed commit and that builds are reproducible: the project can be built and run on different machines.
 
-    The benchmarking framework was written in Python 3, and plots generated using \monospace{matplotlib}. The Java Microbenchmark Harness (JMH) was used for gathering runtime statistics about the performance of output programs. 
+    The benchmarking framework was written in Python 3, and plots generated using \monospace{matplotlib}.
 }
 \section{Software Development Model}\label{sec:software-development-model}
 {

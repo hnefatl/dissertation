@@ -6,7 +6,7 @@ This project was successful: all of the success criteria were met and a number o
 
 I have learned a great deal about the design of compilers from this project, as well as the effects of language design choices and features on the different stages of a traditional compiler.
 
-\compilername has been designed and implemented from scratch: while it lacks support for advanced language features, it is a significantly smaller project than alternative compilers (10x fewer LoC than Frege, 40x fewer than Eta, 83x fewer  than GHC). As such, it could serve as a more accessible implementation of a Haskell compiler for people interested in exploring the internals of a compiler but daunted by the scale of other projects.
+\compilername has been designed and implemented from scratch: while it lacks support for advanced language features, it is a significantly smaller and simpler project than alternative compilers (between 10x and 83x fewer LoC than Frege, Eta, and GHC). As such, it could serve as a more accessible implementation of a Haskell compiler for people interested in exploring the internals of a compiler but daunted by the scale of other projects.
 
 \section{Hindsight}
 {
@@ -14,11 +14,11 @@ I have learned a great deal about the design of compilers from this project, as 
 
     The typechecker is the most complex stage: while some amount of complexity is unavoidable due to Haskell's relatively exotic type system, I feel that the `complexity overhead' added by the implementation onto the complexity of the underlying concepts is higher here than in any other component.
 
-    If I could re-implement this component from scratch, I would focus less on type-checking performance (which was a design goal in the current implementation) and more on clarity and extensibility. This might involve implementing distinct passes for generating type/typeclass constraints and then solving them, rather than doing both in a single pass as in the current implementation. This would likely trade performance for clarity. 
+    If I could re-implement this component from scratch, I would focus less on type-checking performance (which was a design goal in the current implementation) and more on clarity and extensibility. This might involve implementing distinct passes for generating type/typeclass constraints and then solving them, rather than doing generation and solving in a single pass as in the current implementation. This would likely trade performance for clarity. 
 }
 \section{Further Work}
 {
-    The implementation of closures was an experiment: it differs from the approach taken by other Haskell to JVB compilers such as Frege and Eta. However, evaluation showed that this design is not very performant, so it would benefit \compilername to switch to the more efficient approach; although that is quite a large chunk of work.
+    The implementation of closures was an experiment: it differs from the approach taken by other Haskell to JVB compilers such as Frege and Eta. Evaluation showed that this design is not very performant, so it would benefit \compilername to switch to the more efficient approach; although that is quite a large chunk of work.
 
     Smaller, more achievable chunks of work include adding support for more language features. There are plenty of these in a large language like Haskell, ranging from syntactic sugar like list comprehensions to more complex features like typeclass/instance contexts.
 
